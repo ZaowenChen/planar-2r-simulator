@@ -189,7 +189,8 @@ class Planar2RSimulator:
         self._update()
 
     def _configure_robot_axes(self):
-        limit = 1.15 * self.reach
+        # Include the O2 coordinate-frame arrows at fully extended poses.
+        limit = self.reach + self.frame_axis_length + 0.02 * self.reach
         self.ax.set_xlim(-limit, limit)
         self.ax.set_ylim(-limit, limit)
         self.ax.set_aspect("equal", adjustable="box")

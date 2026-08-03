@@ -53,6 +53,19 @@ class TestKinematics(SimulatorTestCase):
         )
         np.testing.assert_allclose(actual, expected, atol=1e-12)
 
+    def test_general_dh_transform_with_nonzero_twist_and_offset(self):
+        dh_transform = self.require_attr("dh_transform")
+        actual = dh_transform(np.pi / 2.0, 2.0, np.pi / 2.0, 3.0)
+        expected = np.array(
+            [
+                [0.0, 0.0, 1.0, 0.0],
+                [1.0, 0.0, 0.0, 2.0],
+                [0.0, 1.0, 0.0, 3.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+        np.testing.assert_allclose(actual, expected, atol=1e-12)
+
     def test_reference_forward_kinematics_poses(self):
         forward_kinematics = self.require_attr("forward_kinematics")
         cases = [
@@ -157,6 +170,23 @@ class TestSimulatorGUI(SimulatorTestCase):
         simulator.fig.savefig(output, format="png", dpi=100)
 
         self.assertGreater(len(output.getvalue()), 10_000)
+
+    def test_full_extension_keeps_endpoint_frame_inside_plot_limits(self):
+        simulator_cls = self.require_attr("Planar2RSimulator")
+        simulator = simulator_cls()
+
+        simulator.theta1_slider.set_val(0.0)
+        simulator.theta2_slider.set_val(0.0)
+        o2_x_line = simulator.frame_lines[2][0]
+        self.assertGreaterEqual(
+            simulator.ax.get_xlim()[1], max(o2_x_line.get_xdata())
+        )
+
+        simulator.theta1_slider.set_val(90.0)
+        o2_x_line = simulator.frame_lines[2][0]
+        self.assertGreaterEqual(
+            simulator.ax.get_ylim()[1], max(o2_x_line.get_ydata())
+        )
 
 
 if __name__ == "__main__":
