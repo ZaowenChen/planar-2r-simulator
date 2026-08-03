@@ -52,7 +52,7 @@ class TestModuleAvailability(unittest.TestCase):
 
 - [ ] **Step 2: Run the import test and verify RED**
 
-Run: `python -m unittest test_planar_2r_simulator.TestModuleAvailability -v`
+Run: `python3 -m unittest test_planar_2r_simulator.TestModuleAvailability -v`
 
 Expected: FAIL because `find_spec("planar_2r_simulator")` returns `None`.
 
@@ -64,7 +64,7 @@ Expected: FAIL because `find_spec("planar_2r_simulator")` returns `None`.
 
 - [ ] **Step 4: Run the import test and verify GREEN**
 
-Run: `python -m unittest test_planar_2r_simulator.TestModuleAvailability -v`
+Run: `python3 -m unittest test_planar_2r_simulator.TestModuleAvailability -v`
 
 Expected: one passing test.
 
@@ -129,7 +129,7 @@ def test_nonpositive_or_nonfinite_link_lengths_are_rejected(self):
 
 - [ ] **Step 6: Run numerical tests and verify RED**
 
-Run: `python -m unittest test_planar_2r_simulator.TestKinematics -v`
+Run: `python3 -m unittest test_planar_2r_simulator.TestKinematics -v`
 
 Expected: FAIL with an assertion that `dh_transform` is missing.
 
@@ -170,7 +170,7 @@ In `forward_kinematics`, reject any `l1` or `l2` for which `not np.isfinite(leng
 
 - [ ] **Step 8: Run the full test file and verify GREEN**
 
-Run: `python -m unittest -v`
+Run: `python3 -m unittest -v`
 
 Expected: all import and kinematics tests pass without warnings.
 
@@ -216,7 +216,7 @@ def test_gui_contains_required_visual_elements(self):
 
 - [ ] **Step 2: Run the GUI test and verify RED**
 
-Run: `python -m unittest test_planar_2r_simulator.TestSimulatorGUI.test_gui_contains_required_visual_elements -v`
+Run: `python3 -m unittest test_planar_2r_simulator.TestSimulatorGUI.test_gui_contains_required_visual_elements -v`
 
 Expected: FAIL because `Planar2RSimulator` is missing.
 
@@ -235,7 +235,7 @@ Use a private `_set_frame_artist(index, origin, rotation)` helper. Its endpoint 
 
 - [ ] **Step 4: Run the full test file and verify GREEN**
 
-Run: `python -m unittest -v`
+Run: `python3 -m unittest -v`
 
 Expected: all tests pass.
 
@@ -283,7 +283,7 @@ def test_headless_figure_can_be_rendered(self):
 
 - [ ] **Step 2: Run the interaction tests and verify RED**
 
-Run: `python -m unittest test_planar_2r_simulator.TestSimulatorGUI -v`
+Run: `python3 -m unittest test_planar_2r_simulator.TestSimulatorGUI -v`
 
 Expected: FAIL because slider changes do not yet update the existing artists and text.
 
@@ -319,10 +319,10 @@ if __name__ == "__main__":
 Run:
 
 ```bash
-python -m unittest -v
-python -m py_compile planar_2r_simulator.py test_planar_2r_simulator.py
+python3 -m unittest -v
+python3 -m py_compile planar_2r_simulator.py test_planar_2r_simulator.py
 mkdir -p artifacts
-MPLBACKEND=Agg python -c 'from planar_2r_simulator import Planar2RSimulator; s=Planar2RSimulator(); s.fig.savefig("artifacts/planar_2r_preview.png", dpi=140)'
+MPLBACKEND=Agg python3 -c 'from planar_2r_simulator import Planar2RSimulator; s=Planar2RSimulator(); s.fig.savefig("artifacts/planar_2r_preview.png", dpi=140)'
 ```
 
 Expected: all tests pass; compilation exits with status 0; preview PNG exists and is nonempty.
