@@ -221,5 +221,61 @@ class TestInverseKinematics(SimulatorTestCase):
         self.assertLessEqual(radial_distance.max(), 3.5 + 1e-12)
 
 
+class TestRobot3DGUI(SimulatorTestCase):
+    """Verify the static educational scene, panels, and widget contracts."""
+
+    def test_gui_has_3d_scene_frames_workspace_and_panels(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+
+        self.assertEqual(simulator.ax3d.name, "3d")
+        self.assertEqual(len(simulator.arm_line.get_xdata()), 4)
+        self.assertEqual(len(simulator.frame_artists), 12)
+        self.assertEqual(len(simulator.frame_labels), 4)
+        self.assertEqual(len(simulator.transform_labels), 3)
+        workspace_x, workspace_y, workspace_z = (
+            simulator.workspace_scatter._offsets3d
+        )
+        self.assertGreater(len(workspace_x), 7_000)
+        self.assertEqual(len(workspace_x), len(workspace_y))
+        self.assertEqual(len(workspace_y), len(workspace_z))
+        self.assertIn("T_0^3", simulator.pose_text.get_text())
+        self.assertIn("T^{-1}", simulator.formula_text.get_text())
+
+    def test_gui_controls_have_required_defaults_and_ranges(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        expected_joint_ranges = [
+            (-180.0, 180.0),
+            (-90.0, 90.0),
+            (-150.0, 150.0),
+        ]
+        expected_target_ranges = [
+            (-3.5, 3.5),
+            (-3.5, 3.5),
+            (-2.7, 4.3),
+        ]
+
+        for slider, expected in zip(
+            simulator.joint_sliders, expected_joint_ranges
+        ):
+            self.assertEqual((slider.valmin, slider.valmax), expected)
+        for slider, expected in zip(
+            simulator.target_sliders, expected_target_ranges
+        ):
+            self.assertEqual((slider.valmin, slider.valmax), expected)
+            self.assertFalse(slider.active)
+
+        self.assertEqual(simulator.mode, "FK")
+        self.assertEqual(simulator.mode_button.label.get_text(), "Mode: FK")
+        self.assertEqual(
+            [label.get_text() for label in simulator.solution_radio.labels],
+            ["Solution 1: Elbow Down", "Solution 2: Elbow Up"],
+        )
+        self.assertIn(
+            "30.0 deg", simulator.dh_table[(1, 4)].get_text().get_text()
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
