@@ -161,7 +161,11 @@ class TestSpatialTransforms(SimulatorTestCase):
 
     def test_zyx_rpy_reconstructs_regular_and_gimbal_lock_rotations(self):
         rotation_to_rpy = self.require_attr("rotation_to_rpy")
-        source_angles = [(0.3, -0.4, 0.8), (0.7, np.pi / 2.0, -0.2)]
+        source_angles = [
+            (0.3, -0.4, 0.8),
+            (0.7, np.pi / 2.0, -0.2),
+            (-0.4, -np.pi / 2.0, 0.6),
+        ]
 
         for source in source_angles:
             with self.subTest(source=source):
@@ -200,6 +204,27 @@ class TestInverseKinematics(SimulatorTestCase):
             np.testing.assert_allclose(
                 forward_kinematics(*angles).origins[3], target, atol=1e-10
             )
+
+    def test_reference_angles_preserve_folded_radial_family(self):
+        inverse_kinematics = self.require_attr("inverse_kinematics")
+        forward_kinematics = self.require_attr("forward_kinematics")
+        reference = np.deg2rad([-180.0, -80.0, -150.0])
+        target = forward_kinematics(*reference).origins[3]
+
+        solutions = inverse_kinematics(
+            target, reference_angles=reference
+        )
+        wrapped_difference = np.arctan2(
+            np.sin(solutions.elbow_up - reference),
+            np.cos(solutions.elbow_up - reference),
+        )
+
+        np.testing.assert_allclose(wrapped_difference, 0.0, atol=1e-10)
+        np.testing.assert_allclose(
+            forward_kinematics(*solutions.elbow_up).origins[3],
+            target,
+            atol=1e-10,
+        )
 
     def test_ik_reports_unreachable_boundary_and_axis_singularity(self):
         inverse_kinematics = self.require_attr("inverse_kinematics")
@@ -330,6 +355,17 @@ class TestRobot3DInteraction(SimulatorTestCase):
             "0.0 deg", simulator.dh_table[(1, 4)].get_text().get_text()
         )
 
+    def test_fk_mode_reverts_inactive_radio_selection(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        selected_before = simulator.solution_radio.value_selected
+        internal_before = simulator.selected_solution_index
+
+        simulator.solution_radio.set_active(1)
+
+        self.assertEqual(simulator.solution_radio.value_selected, selected_before)
+        self.assertEqual(simulator.selected_solution_index, internal_before)
+
     def test_switch_to_ik_preserves_pose_and_syncs_target(self):
         simulator_cls = self.require_attr("Robot3DSimulator")
         simulator = simulator_cls()
@@ -351,6 +387,42 @@ class TestRobot3DInteraction(SimulatorTestCase):
         self.assertTrue(
             all(not slider.active for slider in simulator.joint_sliders)
         )
+
+    def test_folded_fk_pose_selects_valid_continuous_ik_family(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        toggle_mode = self.require_method(simulator, "_toggle_mode")
+        for slider, value in zip(
+            simulator.joint_sliders, (-180.0, -80.0, -150.0)
+        ):
+            slider.set_val(value)
+        angles_before = simulator.current_angles.copy()
+        origins_before = simulator.current_result.origins.copy()
+
+        toggle_mode(None)
+
+        self.assertEqual(simulator.mode, "IK")
+        self.assertEqual(simulator.selected_solution_index, 1)
+        self.assertEqual(
+            simulator.solution_radio.value_selected,
+            "Solution 2: Elbow Up",
+        )
+        np.testing.assert_allclose(
+            simulator.current_angles, angles_before, atol=1e-10
+        )
+        np.testing.assert_allclose(
+            simulator.current_result.origins, origins_before, atol=1e-10
+        )
+        self.assertTrue(simulator._solution_within_limits(simulator.current_angles))
+
+        simulator.target_sliders[0].set_val(
+            simulator.target_sliders[0].val + 0.05
+        )
+        self.assertNotIn(
+            "outside configured joint limits",
+            simulator.status_text.get_text().lower(),
+        )
+        self.assertTrue(simulator._solution_within_limits(simulator.current_angles))
 
     def test_ik_target_and_radio_switch_between_two_valid_branches(self):
         simulator_cls = self.require_attr("Robot3DSimulator")

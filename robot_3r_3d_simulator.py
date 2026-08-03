@@ -181,10 +181,28 @@ def rotation_to_rpy(rotation):
     return np.array((roll, pitch, yaw), dtype=float)
 
 
+def _wrapped_angle_distance(first, second):
+    """Return Euclidean joint-space distance with angles wrapped at 2*pi."""
+
+    difference = np.asarray(first, dtype=float) - np.asarray(second, dtype=float)
+    wrapped = np.arctan2(np.sin(difference), np.cos(difference))
+    return float(np.linalg.norm(wrapped))
+
+
 def inverse_kinematics(
-    target, d1=0.8, l2=2.0, l3=1.5, tolerance=1e-9
+    target,
+    d1=0.8,
+    l2=2.0,
+    l3=1.5,
+    tolerance=1e-9,
+    reference_angles=None,
 ):
-    """Return elbow-down and elbow-up closed-form position IK solutions."""
+    """Return elbow-down and elbow-up closed-form position IK solutions.
+
+    When ``reference_angles`` is supplied, each elbow branch chooses between
+    the equivalent positive- and negative-radial representations.  This keeps
+    folded poses continuous while preserving the conventional two-branch API.
+    """
 
     _validate_geometry(d1, l2, l3)
     target_array = np.asarray(target, dtype=float)
@@ -194,6 +212,14 @@ def inverse_kinematics(
         raise ValueError("IK target must contain finite numbers")
     if not np.isfinite(tolerance) or tolerance < 0.0:
         raise ValueError("IK tolerance must be a finite nonnegative number")
+    if reference_angles is None:
+        reference = None
+    else:
+        reference = np.asarray(reference_angles, dtype=float)
+        if reference.shape != (3,):
+            raise ValueError("IK reference angles must have shape (3,)")
+        if not np.isfinite(reference).all():
+            raise ValueError("IK reference angles must contain finite numbers")
 
     x_target, y_target, z_target = target_array
     radial = np.hypot(x_target, y_target)
@@ -215,17 +241,29 @@ def inverse_kinematics(
     theta3_down = np.arccos(cosine_elbow)
     theta3_up = -theta3_down
 
-    def shoulder_angle(theta3):
-        return np.arctan2(vertical, radial) - np.arctan2(
+    def make_candidate(base_angle, signed_radial, theta3):
+        theta2 = np.arctan2(vertical, signed_radial) - np.arctan2(
             l3 * np.sin(theta3), l2 + l3 * np.cos(theta3)
         )
+        theta2 = np.arctan2(np.sin(theta2), np.cos(theta2))
+        return np.array((base_angle, theta2, theta3), dtype=float)
 
-    elbow_down = np.array(
-        (theta1, shoulder_angle(theta3_down), theta3_down), dtype=float
-    )
-    elbow_up = np.array(
-        (theta1, shoulder_angle(theta3_up), theta3_up), dtype=float
-    )
+    def select_radial_family(theta3):
+        conventional = make_candidate(theta1, radial, theta3)
+        if reference is None or axis_singular:
+            return conventional
+
+        opposite_theta1 = np.arctan2(
+            np.sin(theta1 + np.pi), np.cos(theta1 + np.pi)
+        )
+        folded = make_candidate(opposite_theta1, -radial, theta3)
+        return min(
+            (conventional, folded),
+            key=lambda candidate: _wrapped_angle_distance(candidate, reference),
+        )
+
+    elbow_down = select_radial_family(theta3_down)
+    elbow_up = select_radial_family(theta3_up)
     return IKSolutions(elbow_down, elbow_up, axis_singular)
 
 
@@ -696,7 +734,14 @@ class Robot3DSimulator:
         self._apply_selected_ik_solution()
 
     def _on_solution_change(self, label):
-        if self._updating_controls or self.mode != "IK":
+        if self._updating_controls:
+            return
+        if self.mode != "IK":
+            self._updating_controls = True
+            try:
+                self.solution_radio.set_active(self.selected_solution_index)
+            finally:
+                self._updating_controls = False
             return
         labels = [item.get_text() for item in self.solution_radio.labels]
         self.selected_solution_index = labels.index(label)
@@ -704,9 +749,7 @@ class Robot3DSimulator:
 
     @staticmethod
     def _wrapped_angle_distance(first, second):
-        difference = np.asarray(first) - np.asarray(second)
-        wrapped = np.arctan2(np.sin(difference), np.cos(difference))
-        return float(np.linalg.norm(wrapped))
+        return _wrapped_angle_distance(first, second)
 
     @staticmethod
     def _solution_within_limits(angles):
@@ -722,7 +765,11 @@ class Robot3DSimulator:
         )
         try:
             solutions = inverse_kinematics(
-                target, self.d1, self.l2, self.l3
+                target,
+                self.d1,
+                self.l2,
+                self.l3,
+                reference_angles=self.current_angles,
             )
         except UnreachableTargetError as error:
             self.status_text.set_text(
@@ -760,14 +807,32 @@ class Robot3DSimulator:
         if self.mode == "FK":
             endpoint = self.current_result.origins[3].copy()
             solutions = inverse_kinematics(
-                endpoint, self.d1, self.l2, self.l3
+                endpoint,
+                self.d1,
+                self.l2,
+                self.l3,
+                reference_angles=self.current_angles,
             )
             candidates = (solutions.elbow_down, solutions.elbow_up)
-            distances = [
-                self._wrapped_angle_distance(candidate, self.current_angles)
-                for candidate in candidates
+            valid_indices = [
+                index
+                for index, candidate in enumerate(candidates)
+                if self._solution_within_limits(candidate)
             ]
-            self.selected_solution_index = int(np.argmin(distances))
+            if not valid_indices:
+                self.status_text.set_text(
+                    "Cannot enter IK mode — no equivalent solution is within "
+                    "the configured joint limits"
+                )
+                self.status_text.set_color("#C55A11")
+                self.fig.canvas.draw_idle()
+                return
+            self.selected_solution_index = min(
+                valid_indices,
+                key=lambda index: self._wrapped_angle_distance(
+                    candidates[index], self.current_angles
+                ),
+            )
 
             self._updating_controls = True
             try:
