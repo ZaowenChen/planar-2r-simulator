@@ -100,5 +100,29 @@ class TestKinematics(SimulatorTestCase):
                     forward_kinematics(0.0, 0.0, *lengths)
 
 
+class TestSimulatorGUI(SimulatorTestCase):
+    """Verify the simulator exposes the required visual controls."""
+
+    def test_gui_contains_required_visual_elements(self):
+        simulator_cls = self.require_attr("Planar2RSimulator")
+        simulator = simulator_cls()
+
+        self.assertEqual(simulator.arm_line.get_marker(), "o")
+        self.assertEqual(len(simulator.workspace_circles), 2)
+        self.assertAlmostEqual(simulator.workspace_circles[0].radius, 3.5)
+        self.assertAlmostEqual(simulator.workspace_circles[1].radius, 0.5)
+
+        self.assertEqual(len(simulator.frame_lines), 3)
+        for x_line, y_line in simulator.frame_lines:
+            self.assertEqual(x_line.get_color(), "red")
+            self.assertEqual(y_line.get_color(), "green")
+
+        self.assertEqual(len(simulator.frame_labels), 3)
+        self.assertEqual(simulator.theta1_slider.valmin, -180.0)
+        self.assertEqual(simulator.theta1_slider.valmax, 180.0)
+        self.assertEqual(simulator.theta2_slider.valmin, -180.0)
+        self.assertEqual(simulator.theta2_slider.valmax, 180.0)
+
+
 if __name__ == "__main__":
     unittest.main()
