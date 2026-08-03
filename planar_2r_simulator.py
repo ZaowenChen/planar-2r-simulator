@@ -39,6 +39,8 @@ def dh_transform(theta, a, alpha, d):
     cos_theta, sin_theta = np.cos(theta), np.sin(theta)
     cos_alpha, sin_alpha = np.cos(alpha), np.sin(alpha)
 
+    # Standard D-H order: RotZ(theta) -> TransZ(d) -> TransX(a)
+    # -> RotX(alpha). The final column is the translated frame origin.
     return np.array(
         [
             [
@@ -182,6 +184,9 @@ class Planar2RSimulator:
         self.ax.legend(loc="upper left", fontsize=9)
         self._create_information_panel()
         self._create_sliders(theta1_deg, theta2_deg)
+        self.theta1_slider.on_changed(self._update)
+        self.theta2_slider.on_changed(self._update)
+        self._update()
 
     def _configure_robot_axes(self):
         limit = 1.15 * self.reach
@@ -283,3 +288,67 @@ class Planar2RSimulator:
         y_line.set_data(
             (origin[0], y_endpoint[0]), (origin[1], y_endpoint[1])
         )
+
+    @staticmethod
+    def _format_matrix(matrix):
+        cleaned = np.where(np.abs(matrix) < 5e-13, 0.0, matrix)
+        return np.array2string(
+            cleaned,
+            precision=3,
+            suppress_small=True,
+            floatmode="fixed",
+        )
+
+    def _update(self, _value=None):
+        """Recompute the pose and update existing artists in place."""
+
+        theta1 = np.deg2rad(self.theta1_slider.val)
+        theta2 = np.deg2rad(self.theta2_slider.val)
+        result = forward_kinematics(theta1, theta2, self.l1, self.l2)
+        self.current_result = result
+
+        self.arm_line.set_data(result.origins[:, 0], result.origins[:, 1])
+
+        rotations = (
+            np.eye(2),
+            result.t01[:2, :2],
+            result.t02[:2, :2],
+        )
+        for index, (origin, rotation) in enumerate(
+            zip(result.origins, rotations)
+        ):
+            self._set_frame_artist(index, origin, rotation)
+            self.frame_labels[index].set_position(
+                (
+                    origin[0] + self.label_offset,
+                    origin[1] + self.label_offset,
+                )
+            )
+
+        endpoint = result.origins[2]
+        self.position_text.set_text(
+            "End-effector position\n\n"
+            "x = {:.3f}\n"
+            "y = {:.3f}".format(endpoint[0], endpoint[1])
+        )
+        self.matrix_text.set_text(
+            "T_0^2 =\n\n{}".format(self._format_matrix(result.t02))
+        )
+
+        self.fig.canvas.draw_idle()
+
+    def show(self):
+        """Open the interactive Matplotlib window."""
+
+        plt.show()
+
+
+def main():
+    """Launch the default planar 2R simulator."""
+
+    simulator = Planar2RSimulator()
+    simulator.show()
+
+
+if __name__ == "__main__":
+    main()
