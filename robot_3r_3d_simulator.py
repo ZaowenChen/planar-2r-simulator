@@ -365,6 +365,12 @@ class Robot3DSimulator:
             "FK mode — move the joint-angle sliders",
             "#1F4E79",
         )
+        for slider in self.joint_sliders:
+            slider.on_changed(self._on_joint_change)
+        for slider in self.target_sliders:
+            slider.on_changed(self._on_target_change)
+        self.mode_button.on_clicked(self._toggle_mode)
+        self.solution_radio.on_clicked(self._on_solution_change)
 
     def _configure_3d_axes(self):
         horizontal_limit = 1.18 * self.reach
@@ -379,7 +385,8 @@ class Robot3DSimulator:
         self.ax3d.set_zlabel("Z")
         self.ax3d.set_title("3D robot frames and reachable workspace")
         self.ax3d.grid(True, linestyle=":", alpha=0.5)
-        self.ax3d.view_init(elev=24.0, azim=38.0)
+        # Keep the default arm plane side-on instead of looking along theta1.
+        self.ax3d.view_init(elev=24.0, azim=-60.0)
 
         legend_handles = [
             Line2D(
@@ -669,3 +676,147 @@ class Robot3DSimulator:
         self.status_text.set_text(status)
         self.status_text.set_color(status_color)
         self.fig.canvas.draw_idle()
+
+    def _on_joint_change(self, _value):
+        if self._updating_controls or self.mode != "FK":
+            return
+        angles = np.deg2rad([slider.val for slider in self.joint_sliders])
+        result = forward_kinematics(
+            *angles, self.d1, self.l2, self.l3
+        )
+        self._update_visuals(
+            result,
+            "FK mode — joint sliders drive T_0^3",
+            "#1F4E79",
+        )
+
+    def _on_target_change(self, _value):
+        if self._updating_controls or self.mode != "IK":
+            return
+        self._apply_selected_ik_solution()
+
+    def _on_solution_change(self, label):
+        if self._updating_controls or self.mode != "IK":
+            return
+        labels = [item.get_text() for item in self.solution_radio.labels]
+        self.selected_solution_index = labels.index(label)
+        self._apply_selected_ik_solution()
+
+    @staticmethod
+    def _wrapped_angle_distance(first, second):
+        difference = np.asarray(first) - np.asarray(second)
+        wrapped = np.arctan2(np.sin(difference), np.cos(difference))
+        return float(np.linalg.norm(wrapped))
+
+    @staticmethod
+    def _solution_within_limits(angles):
+        angle_degrees = np.rad2deg(angles)
+        return all(
+            lower - 1e-9 <= value <= upper + 1e-9
+            for value, (lower, upper) in zip(angle_degrees, JOINT_LIMITS_DEG)
+        )
+
+    def _apply_selected_ik_solution(self):
+        target = np.array(
+            [slider.val for slider in self.target_sliders], dtype=float
+        )
+        try:
+            solutions = inverse_kinematics(
+                target, self.d1, self.l2, self.l3
+            )
+        except UnreachableTargetError as error:
+            self.status_text.set_text(
+                "IK target unreachable — pose preserved ({})".format(error)
+            )
+            self.status_text.set_color("#C00000")
+            self.fig.canvas.draw_idle()
+            return
+
+        selected = (
+            solutions.elbow_down
+            if self.selected_solution_index == 0
+            else solutions.elbow_up
+        )
+        if not self._solution_within_limits(selected):
+            self.status_text.set_text(
+                "IK target outside configured joint limits — pose preserved"
+            )
+            self.status_text.set_color("#C55A11")
+            self.fig.canvas.draw_idle()
+            return
+
+        result = forward_kinematics(
+            *selected, self.d1, self.l2, self.l3
+        )
+        branch_name = "Elbow Down" if self.selected_solution_index == 0 else "Elbow Up"
+        singular_note = " — base-axis singularity: theta1 fixed at 0 deg" if solutions.axis_singular else ""
+        self._update_visuals(
+            result,
+            "IK mode — {}{}".format(branch_name, singular_note),
+            "#548235" if not solutions.axis_singular else "#C55A11",
+        )
+
+    def _toggle_mode(self, _event):
+        if self.mode == "FK":
+            endpoint = self.current_result.origins[3].copy()
+            solutions = inverse_kinematics(
+                endpoint, self.d1, self.l2, self.l3
+            )
+            candidates = (solutions.elbow_down, solutions.elbow_up)
+            distances = [
+                self._wrapped_angle_distance(candidate, self.current_angles)
+                for candidate in candidates
+            ]
+            self.selected_solution_index = int(np.argmin(distances))
+
+            self._updating_controls = True
+            try:
+                for slider, coordinate in zip(self.target_sliders, endpoint):
+                    slider.set_val(float(coordinate))
+                self.solution_radio.set_active(self.selected_solution_index)
+            finally:
+                self._updating_controls = False
+            self.mode = "IK"
+            self._style_control_mode()
+            branch_name = (
+                "Elbow Down"
+                if self.selected_solution_index == 0
+                else "Elbow Up"
+            )
+            self._update_visuals(
+                self.current_result,
+                "IK mode — current pose matched to {}".format(branch_name),
+                "#548235",
+            )
+        else:
+            self._updating_controls = True
+            try:
+                for slider, angle in zip(
+                    self.joint_sliders, np.rad2deg(self.current_angles)
+                ):
+                    slider.set_val(float(angle))
+            finally:
+                self._updating_controls = False
+            self.mode = "FK"
+            self._style_control_mode()
+            self._update_visuals(
+                self.current_result,
+                "FK mode — joint sliders synchronized to the current pose",
+                "#1F4E79",
+            )
+
+    def show(self):
+        """Open the interactive Matplotlib window."""
+
+        plt.show()
+
+
+def main():
+    """Launch the default 3D 3R simulator."""
+
+    simulator = Robot3DSimulator()
+    simulator.show()
+
+
+if __name__ == "__main__":
+    main()

@@ -2,6 +2,7 @@
 
 import importlib
 import importlib.util
+import io
 import unittest
 
 import matplotlib
@@ -9,6 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import proj3d
 
 
 simulator_module = importlib.import_module("robot_3r_3d_simulator")
@@ -53,6 +55,13 @@ class SimulatorTestCase(unittest.TestCase):
             "robot_3r_3d_simulator is missing {!r}".format(name),
         )
         return getattr(simulator_module, name)
+
+    def require_method(self, instance, name):
+        self.assertTrue(
+            hasattr(instance, name),
+            "{} is missing {!r}".format(type(instance).__name__, name),
+        )
+        return getattr(instance, name)
 
     def tearDown(self):
         plt.close("all")
@@ -275,6 +284,127 @@ class TestRobot3DGUI(SimulatorTestCase):
         self.assertIn(
             "30.0 deg", simulator.dh_table[(1, 4)].get_text().get_text()
         )
+
+    def test_initial_camera_keeps_robot_legible_in_screen_projection(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        simulator.fig.canvas.draw()
+        origins = simulator.current_result.origins
+        projected_x, projected_y, _ = proj3d.proj_transform(
+            origins[:, 0],
+            origins[:, 1],
+            origins[:, 2],
+            simulator.ax3d.get_proj(),
+        )
+        screen_points = simulator.ax3d.transData.transform(
+            np.column_stack((projected_x, projected_y))
+        )
+        pairwise_distances = np.linalg.norm(
+            screen_points[:, None, :] - screen_points[None, :, :], axis=2
+        )
+        span_ratio = pairwise_distances.max() / min(
+            simulator.ax3d.bbox.width, simulator.ax3d.bbox.height
+        )
+
+        self.assertGreater(span_ratio, 0.20)
+
+
+class TestRobot3DInteraction(SimulatorTestCase):
+    """Exercise real sliders and branch selection across FK/IK modes."""
+
+    def test_fk_sliders_update_endpoint_and_dynamic_dh_table(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+
+        for slider, value in zip(
+            simulator.joint_sliders, (0.0, 0.0, 0.0)
+        ):
+            slider.set_val(value)
+
+        np.testing.assert_allclose(
+            simulator.current_result.origins[3],
+            [3.5, 0.0, 0.8],
+            atol=1e-12,
+        )
+        self.assertIn(
+            "0.0 deg", simulator.dh_table[(1, 4)].get_text().get_text()
+        )
+
+    def test_switch_to_ik_preserves_pose_and_syncs_target(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        toggle_mode = self.require_method(simulator, "_toggle_mode")
+        endpoint_before = simulator.current_result.origins[3].copy()
+
+        toggle_mode(None)
+
+        self.assertEqual(simulator.mode, "IK")
+        np.testing.assert_allclose(
+            [slider.val for slider in simulator.target_sliders],
+            endpoint_before,
+            atol=0.051,
+        )
+        np.testing.assert_allclose(
+            simulator.current_result.origins[3], endpoint_before, atol=1e-10
+        )
+        self.assertTrue(all(slider.active for slider in simulator.target_sliders))
+        self.assertTrue(
+            all(not slider.active for slider in simulator.joint_sliders)
+        )
+
+    def test_ik_target_and_radio_switch_between_two_valid_branches(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        toggle_mode = self.require_method(simulator, "_toggle_mode")
+        toggle_mode(None)
+
+        for slider, value in zip(
+            simulator.target_sliders, (2.5, 0.0, 0.8)
+        ):
+            slider.set_val(value)
+        simulator.solution_radio.set_active(0)
+        endpoint_down = simulator.current_result.origins[3].copy()
+        elbow_down = simulator.current_result.origins[2].copy()
+
+        simulator.solution_radio.set_active(1)
+        endpoint_up = simulator.current_result.origins[3].copy()
+        elbow_up = simulator.current_result.origins[2].copy()
+
+        np.testing.assert_allclose(endpoint_down, [2.5, 0.0, 0.8], atol=1e-9)
+        np.testing.assert_allclose(endpoint_up, [2.5, 0.0, 0.8], atol=1e-9)
+        self.assertFalse(np.allclose(elbow_down, elbow_up))
+
+    def test_invalid_ik_target_preserves_last_valid_pose(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        toggle_mode = self.require_method(simulator, "_toggle_mode")
+        toggle_mode(None)
+        last_valid = simulator.current_result.origins.copy()
+
+        simulator.target_sliders[0].set_val(3.5)
+        simulator.target_sliders[1].set_val(3.5)
+
+        self.assertIn("unreachable", simulator.status_text.get_text().lower())
+        np.testing.assert_allclose(
+            simulator.current_result.origins, last_valid, atol=1e-12
+        )
+
+        simulator.target_sliders[0].set_val(0.5)
+        simulator.target_sliders[1].set_val(0.0)
+        simulator.target_sliders[2].set_val(0.8)
+        self.assertIn(
+            "outside configured joint limits",
+            simulator.status_text.get_text().lower(),
+        )
+
+    def test_headless_3d_figure_can_render(self):
+        simulator_cls = self.require_attr("Robot3DSimulator")
+        simulator = simulator_cls()
+        output = io.BytesIO()
+
+        simulator.fig.savefig(output, format="png", dpi=100)
+
+        self.assertGreater(len(output.getvalue()), 50_000)
 
 
 if __name__ == "__main__":
