@@ -1,4 +1,10 @@
-import { determinant, EigenvalueDecomposition, inverse, Matrix } from 'ml-matrix'
+import {
+  determinant,
+  EigenvalueDecomposition,
+  inverse,
+  Matrix,
+  SingularValueDecomposition,
+} from 'ml-matrix'
 import type { Matrix3, Matrix4, Vector3 } from './types'
 
 export type NumericMatrix = readonly (readonly number[])[]
@@ -163,6 +169,15 @@ export function symmetricEigenvalues3(matrix: Matrix3): Vector3 {
 
 export function frobeniusNorm(matrix: NumericMatrix): number {
   return toMatrix(matrix, 'matrix').norm('frobenius')
+}
+
+export function singularValues(matrix: NumericMatrix): readonly number[] {
+  const decomposition = new SingularValueDecomposition(toMatrix(matrix, 'matrix'), {
+    autoTranspose: true,
+    computeLeftSingularVectors: false,
+    computeRightSingularVectors: false,
+  })
+  return decomposition.diagonal.sort((left, right) => right - left)
 }
 
 export function nearlyEqual(left: number, right: number, tolerance = 1e-9): boolean {

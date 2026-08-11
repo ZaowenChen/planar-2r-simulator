@@ -2,6 +2,15 @@ export type Vector3 = readonly [number, number, number]
 
 export type Matrix3 = readonly [Vector3, Vector3, Vector3]
 
+export type Matrix6x3 = readonly [
+  Vector3,
+  Vector3,
+  Vector3,
+  Vector3,
+  Vector3,
+  Vector3,
+]
+
 export type Matrix4 = readonly [
   readonly [number, number, number, number],
   readonly [number, number, number, number],
