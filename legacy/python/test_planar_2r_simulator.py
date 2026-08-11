@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-simulator_module = importlib.import_module("planar_2r_simulator")
+simulator_module = importlib.import_module("legacy.python.planar_2r_simulator")
 
 
 class SimulatorTestCase(unittest.TestCase):
@@ -33,8 +33,8 @@ class TestModuleAvailability(unittest.TestCase):
     """Catch a missing runnable simulator module."""
 
     def test_simulator_module_can_be_imported(self):
-        spec = importlib.util.find_spec("planar_2r_simulator")
-        self.assertIsNotNone(spec, "planar_2r_simulator.py does not exist")
+        spec = importlib.util.find_spec("legacy.python.planar_2r_simulator")
+        self.assertIsNotNone(spec, "legacy.python.planar_2r_simulator does not exist")
 
 
 class TestKinematics(SimulatorTestCase):
