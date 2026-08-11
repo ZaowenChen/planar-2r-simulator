@@ -681,7 +681,7 @@ export const DISPLAY = {
 } as const
 ```
 
-Use these constants in formula, table, control, and export components. Add a source test that scans user-visible component strings and fails on the four banned source-style labels.
+Use these constants in formula, table, control, and export components. Add rendered integration tests that visit every module and generate one CSV, then fail if the visible document or exported column names contain any of the four banned source-style labels.
 
 - [ ] **Step 5: Implement the visual system and shell**
 
@@ -767,11 +767,14 @@ git commit -m "feat: render interactive 3r robot scene"
 ```tsx
 it('updates the endpoint, transform, Jacobian, and scene revision from θ₂', async () => {
   render(<KinematicsPage />)
+  const before = screen.getByTestId('endpoint-result').getAttribute('data-revision')
   await userEvent.clear(screen.getByLabelText('关节角 θ₂'))
   await userEvent.type(screen.getByLabelText('关节角 θ₂'), '30')
   expect(screen.getByTestId('endpoint-result')).toHaveTextContent('m')
-  expect(screen.getByTestId('transform-result')).toHaveAttribute('data-revision', '1')
-  expect(screen.getByTestId('jacobian-result')).toHaveAttribute('data-revision', '1')
+  const after = screen.getByTestId('endpoint-result').getAttribute('data-revision')
+  expect(after).not.toBe(before)
+  expect(screen.getByTestId('transform-result')).toHaveAttribute('data-revision', after)
+  expect(screen.getByTestId('jacobian-result')).toHaveAttribute('data-revision', after)
 })
 ```
 
