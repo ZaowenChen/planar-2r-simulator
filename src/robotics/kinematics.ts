@@ -170,10 +170,17 @@ export function inverseKinematics(
     }
 
     const folded = makeCandidate(theta3, branch, 'folded')
-    return wrappedJointDistance(folded.q, referenceQ)
-      < wrappedJointDistance(conventional.q, referenceQ)
-      ? folded
-      : conventional
+    const validFamilies = [conventional, folded]
+      .filter((candidate) => withinJointLimits(candidate.q, parameters))
+    const selectableFamilies = validFamilies.length > 0
+      ? validFamilies
+      : [conventional, folded]
+    return selectableFamilies.reduce((nearest, candidate) => (
+      wrappedJointDistance(candidate.q, referenceQ)
+        < wrappedJointDistance(nearest.q, referenceQ)
+        ? candidate
+        : nearest
+    ))
   }
 
   const candidates = [

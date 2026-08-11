@@ -83,6 +83,37 @@ describe('closed-form inverse kinematics', () => {
     expect(wrappedDistance(elbowUp!.q, reference)).toBeLessThanOrEqual(1e-10)
   })
 
+  it('preserves every elbow branch when the nearest radial family violates joint limits', () => {
+    const target: Vector3 = [-0.9058666579, 0, -2.5807403920]
+    const reference: Vector3 = [
+      -60 * Math.PI / 180,
+      -90 * Math.PI / 180,
+      -150 * Math.PI / 180,
+    ]
+
+    const result = inverseKinematics(target, DEFAULT_ROBOT_PARAMETERS, reference)
+
+    expect(result.status).toBe('reachable')
+    expect(result.solutions.map((solution) => solution.branch)).toEqual([
+      'elbow-down',
+      'elbow-up',
+    ])
+    expect(result.solutions.every((solution) => solution.radialFamily === 'conventional'))
+      .toBe(true)
+    for (const solution of result.solutions) {
+      expectVectorClose(
+        forwardKinematics(solution.q, DEFAULT_ROBOT_PARAMETERS).endEffectorPosition,
+        target,
+        1e-8,
+      )
+      solution.q.forEach((angle, joint) => {
+        const [minimum, maximum] = DEFAULT_ROBOT_PARAMETERS.jointLimits[joint]
+        expect(angle).toBeGreaterThanOrEqual(minimum - 1e-10)
+        expect(angle).toBeLessThanOrEqual(maximum + 1e-10)
+      })
+    }
+  })
+
   it('rejects malformed target tuples rather than misclassifying them as user states', () => {
     expect(() => inverseKinematics(
       [1, 2] as unknown as Vector3,
