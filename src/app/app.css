@@ -91,7 +91,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
 .analysis-stack > section > output { display: block; margin-bottom: 10px; padding: 10px 12px; color: #fff; background: var(--ink); font-variant-numeric: tabular-nums; }
 .robot-scene { min-height: 470px; }
 
-.analysis-stack { display: grid; gap: 18px; }
+.analysis-stack { display: grid; min-width: 0; gap: 18px; overflow: hidden; }
 .formula-card { border-top: 3px solid var(--teal); background: #fffdf8; box-shadow: 0 8px 24px rgb(23 40 60 / 6%); }
 .formula-card__header { padding: 16px 16px 0; }
 .formula-card__header h3 { font-size: 1.1rem; }

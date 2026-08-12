@@ -1,8 +1,8 @@
-.robot-scene { display: grid; gap: 12px; color: #e7f1ef; background: #142638; }
-.robot-scene__viewport { position: relative; min-height: 420px; }
-.robot-scene__viewport canvas { display: block; min-height: 420px; }
+.robot-scene { display: grid; min-width: 0; gap: 12px; color: #e7f1ef; background: #142638; }
+.robot-scene__viewport { position: relative; min-width: 0; min-height: 420px; overflow: hidden; }
+.robot-scene__viewport canvas { display: block; width: 100% !important; max-width: 100%; min-height: 420px; }
 .robot-scene__reset { position: absolute; top: 12px; right: 12px; min-height: 38px; padding: 7px 12px; border: 1px solid rgb(220 236 234 / 45%); color: #f7faf9; background: rgb(20 38 56 / 82%); cursor: pointer; }
-.robot-scene__controls { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 0; padding: 10px 14px 14px; border: 0; border-top: 1px solid rgb(220 236 234 / 20%); }
+.robot-scene__controls { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px 14px; margin: 0; padding: 10px 14px 14px; border: 0; border-top: 1px solid rgb(220 236 234 / 20%); }
 .robot-scene__controls legend { padding: 0 8px 0 0; color: #90cbc5; font-size: .74rem; font-weight: 700; letter-spacing: .1em; }
 .robot-scene__controls label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: #dcecea; font-size: .76rem; cursor: pointer; }
 .robot-scene__controls input { width: 16px; min-height: 16px; accent-color: #58b8b1; }

@@ -264,7 +264,7 @@ export function ExperimentPage() {
             type="range"
             value={sampleTime}
           />
-          <output>{sampleTime.toFixed(3)} s</output>
+          <output data-testid="simulation-time">{sampleTime.toFixed(3)} s</output>
         </label>
         <button onClick={() => downloadSimulationCsv(samples)} type="button">导出 CSV</button>
       </div>}
