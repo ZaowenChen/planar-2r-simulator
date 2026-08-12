@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_JOINT_STATE, DEFAULT_ROBOT_PARAMETERS } from '../robotics/defaults'
 import { geometricJacobian } from '../robotics/jacobian'
 import { forwardKinematics } from '../robotics/kinematics'
-import { RobotScene } from './RobotScene'
+import { resetSceneCamera, RobotScene } from './RobotScene'
 
 vi.mock('@react-three/fiber', async () => {
   const actual = await vi.importActual<typeof import('@react-three/fiber')>('@react-three/fiber')
@@ -75,7 +75,26 @@ describe('RobotScene', () => {
     expect(screen.getByText('箭头长度已归一化，仅用于辨识方向。')).toBeInTheDocument()
   })
 
-  it('supports geometry toggles and exposes an orbit-camera reset control', () => {
+  it('restores the documented camera position, Z-up axis, and orbit target', () => {
+    const cameraState = { position: [0, 0, 0], up: [1, 0, 0] }
+    const orbitState = { target: [9, 9, 9], updates: 0 }
+
+    resetSceneCamera(
+      {
+        position: { set: (x, y, z) => { cameraState.position = [x, y, z] } },
+        up: { set: (x, y, z) => { cameraState.up = [x, y, z] } },
+      },
+      {
+        target: { set: (x, y, z) => { orbitState.target = [x, y, z] } },
+        update: () => { orbitState.updates += 1 },
+      },
+    )
+
+    expect(cameraState).toEqual({ position: [6, -7, 5], up: [0, 0, 1] })
+    expect(orbitState).toEqual({ target: [0, 0, 1], updates: 1 })
+  })
+
+  it('supports geometry toggles and exposes the camera-reset action', () => {
     renderScene()
 
     expect(screen.getByRole('checkbox', { name: '局部坐标系' })).toBeChecked()

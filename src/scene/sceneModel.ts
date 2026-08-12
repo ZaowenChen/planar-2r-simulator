@@ -145,6 +145,18 @@ function scale(vector: Vector3, scalar: number): Vector3 {
   return vector.map((component) => component === 0 ? 0 : component * scalar) as unknown as Vector3
 }
 
+function add(left: Vector3, right: Vector3): Vector3 {
+  return [left[0] + right[0], left[1] + right[1], left[2] + right[2]]
+}
+
+function cross(left: Vector3, right: Vector3): Vector3 {
+  return [
+    left[1] * right[2] - left[2] * right[1],
+    left[2] * right[0] - left[0] * right[2],
+    left[0] * right[1] - left[1] * right[0],
+  ]
+}
+
 function normalized(vector: Vector3): Vector3 {
   const length = magnitude(vector)
   return length === 0 ? ZERO_VECTOR : scale(vector, 1 / length)
@@ -222,6 +234,65 @@ function multiplyJacobian(jacobian: Matrix6x3, vector: Vector3): Vector3 {
     + jacobian[row][1] * vector[1]
     + jacobian[row][2] * vector[2]
   )) as unknown as Vector3
+}
+
+/**
+ * Exact revolute-chain acceleration: Jv qdd + Jdot_v qd. Axis and origin
+ * derivatives are propagated from preceding joint angular velocities.
+ */
+function endEffectorLinearAcceleration(
+  forward: ForwardKinematicsResult,
+  jacobian: Matrix6x3,
+  jointState: JointState,
+): Vector3 {
+  const directAcceleration = multiplyJacobian(jacobian, jointState.qdd)
+  if (jointState.qd.every((velocity) => velocity === 0)) return directAcceleration
+
+  const endpointVelocity = multiplyJacobian(jacobian, jointState.qd)
+  let convectiveAcceleration: Vector3 = ZERO_VECTOR
+
+  for (let jointIndex = 0; jointIndex < 3; jointIndex += 1) {
+    let precedingAngularVelocity: Vector3 = ZERO_VECTOR
+    let jointOriginVelocity: Vector3 = ZERO_VECTOR
+
+    for (let precedingIndex = 0; precedingIndex < jointIndex; precedingIndex += 1) {
+      precedingAngularVelocity = add(
+        precedingAngularVelocity,
+        scale(forward.jointAxes[precedingIndex], jointState.qd[precedingIndex]),
+      )
+      jointOriginVelocity = add(
+        jointOriginVelocity,
+        scale(
+          cross(
+            forward.jointAxes[precedingIndex],
+            vectorBetween(forward.origins[precedingIndex], forward.origins[jointIndex]),
+          ),
+          jointState.qd[precedingIndex],
+        ),
+      )
+    }
+
+    const axisDerivative = cross(
+      precedingAngularVelocity,
+      forward.jointAxes[jointIndex],
+    )
+    const jacobianColumnDerivative = add(
+      cross(
+        axisDerivative,
+        vectorBetween(forward.origins[jointIndex], forward.endEffectorPosition),
+      ),
+      cross(
+        forward.jointAxes[jointIndex],
+        vectorBetween(jointOriginVelocity, endpointVelocity),
+      ),
+    )
+    convectiveAcceleration = add(
+      convectiveAcceleration,
+      scale(jacobianColumnDerivative, jointState.qd[jointIndex]),
+    )
+  }
+
+  return add(directAcceleration, convectiveAcceleration)
 }
 
 function average(points: readonly Vector3[]): Vector3 {
@@ -304,7 +375,7 @@ export function buildSceneModel(input: SceneCalculationInput): SceneModel {
       id: 'acceleration',
       label: 'aₑ',
       origin: forward.endEffectorPosition,
-      vector: multiplyJacobian(input.jacobian, input.jointState.qdd),
+      vector: endEffectorLinearAcceleration(input.forward, input.jacobian, input.jointState),
       unit: 'm/s²',
       color: '#f59e0b',
       visible: overlays.acceleration,

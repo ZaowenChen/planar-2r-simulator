@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_ROBOT_PARAMETERS } from '../robotics/defaults'
+import { geometricJacobian } from '../robotics/jacobian'
+import { forwardKinematics } from '../robotics/kinematics'
 import type { ForwardKinematicsResult } from '../robotics/kinematics'
-import type { Matrix6x3 } from '../robotics/types'
+import type { Matrix6x3, Vector3 } from '../robotics/types'
 import { buildSceneModel } from './sceneModel'
 
 const forward: ForwardKinematicsResult = {
@@ -113,10 +116,45 @@ describe('buildSceneModel', () => {
 
     expect(velocity).toMatchObject({ vector: [2, 6, 12], unit: 'm/s' })
     expect(velocity?.magnitude).toBeCloseTo(Math.sqrt(184), 12)
-    expect(acceleration).toMatchObject({ vector: [-1, 4, 1.5], unit: 'm/s²' })
-    expect(acceleration?.magnitude).toBeCloseTo(Math.sqrt(19.25), 12)
+    expect(acceleration?.unit).toBe('m/s²')
+    expect(acceleration?.magnitude).toBeCloseTo(Math.hypot(...(acceleration?.vector ?? [])), 12)
     expect(gravity).toMatchObject({ vector: [0, 0, -9.81], magnitude: 9.81, unit: 'm/s²' })
     expect(model.vectors.every((vector) => vector.displayLength <= 1.35)).toBe(true)
     expect(JSON.parse(JSON.stringify(model))).toEqual(model)
+  })
+
+  it('includes convective acceleration when nonzero joint velocity changes the Jacobian', () => {
+    const q: Vector3 = [0.41, -0.36, 0.58]
+    const qd: Vector3 = [0.7, -0.45, 0.32]
+    const qdd: Vector3 = [0.12, 0.28, -0.19]
+    const timeStep = 1e-4
+    const positionAt = (time: number): Vector3 => {
+      const state = q.map((angle, index) => (
+        angle + qd[index] * time + 0.5 * qdd[index] * time * time
+      )) as unknown as Vector3
+      return forwardKinematics(state, DEFAULT_ROBOT_PARAMETERS).endEffectorPosition
+    }
+    const before = positionAt(-timeStep)
+    const current = positionAt(0)
+    const after = positionAt(timeStep)
+    const finiteDifferenceAcceleration = current.map((value, index) => (
+      (after[index] - 2 * value + before[index]) / (timeStep * timeStep)
+    )) as unknown as Vector3
+    const currentForward = forwardKinematics(q, DEFAULT_ROBOT_PARAMETERS)
+
+    const model = buildSceneModel({
+      forward: currentForward,
+      jointState: { q, qd, qdd },
+      jacobian: geometricJacobian(q, DEFAULT_ROBOT_PARAMETERS),
+      torque: [0, 0, 0],
+      gravity: DEFAULT_ROBOT_PARAMETERS.gravity,
+      overlays: { acceleration: true },
+    })
+    const acceleration = model.vectors.find((vector) => vector.id === 'acceleration')
+
+    for (let index = 0; index < 3; index += 1) {
+      expect(acceleration?.vector[index]).toBeCloseTo(finiteDifferenceAcceleration[index], 5)
+    }
+    expect(acceleration?.magnitude).toBeCloseTo(Math.hypot(...finiteDifferenceAcceleration), 5)
   })
 })

@@ -22,6 +22,32 @@ export const DEFAULT_SCENE_CAMERA = {
 
 const CAMERA_TARGET: [number, number, number] = [0, 0, 1]
 
+interface VectorSetter {
+  set: (x: number, y: number, z: number) => unknown
+}
+
+interface ResettableCamera {
+  position: VectorSetter
+  up: VectorSetter
+}
+
+interface ResettableOrbitControls {
+  target: VectorSetter
+  update: () => unknown
+}
+
+export function resetSceneCamera(
+  camera: ResettableCamera,
+  controls: ResettableOrbitControls | null,
+): void {
+  camera.position.set(...DEFAULT_SCENE_CAMERA.position)
+  camera.up.set(0, 0, 1)
+  if (controls !== null) {
+    controls.target.set(...CAMERA_TARGET)
+    controls.update()
+  }
+}
+
 export interface RobotSceneCalculation {
   forward: ForwardKinematicsResult
   jointState: JointState
@@ -55,10 +81,7 @@ function CameraRig({ resetRevision }: { resetRevision: number }) {
   const camera = useThree((state) => state.camera)
 
   useEffect(() => {
-    camera.position.set(...DEFAULT_SCENE_CAMERA.position)
-    camera.up.set(0, 0, 1)
-    controls.current?.target.set(...CAMERA_TARGET)
-    controls.current?.update()
+    resetSceneCamera(camera, controls.current)
   }, [camera, resetRevision])
 
   return (
