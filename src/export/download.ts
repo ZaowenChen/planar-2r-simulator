@@ -25,9 +25,10 @@ export function downloadSimulationCsv(
 export function downloadPlotImage(
   graph: PlotlyHTMLElement,
   format: 'svg' | 'png',
+  filename = '3r-dynamics-timeseries',
 ): Promise<string> {
   return Plotly.downloadImage(graph, {
-    filename: '3r-dynamics-timeseries',
+    filename,
     format,
     height: 1080,
     width: 1440,

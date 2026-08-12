@@ -31,28 +31,34 @@ function traces(
 }
 
 export function TimeSeriesCharts({ samples, time, onTimeChange }: TimeSeriesChartsProps) {
-  const exportGraph = useRef<PlotlyHTMLElement | null>(null)
+  const exportGraphs = useRef<Record<string, PlotlyHTMLElement | undefined>>({})
   const groups: readonly {
     title: string
     data: Data[]
     yTitle: string
+    exportKey: string
+    exportLabel: string
   }[] = [
     {
       title: 'q / q̇ / q̈',
       yTitle: 'SI joint state',
+      exportKey: 'joint-state',
+      exportLabel: '状态',
       data: [
         ...traces(samples, (sample) => sample.q, ['θ₁', 'θ₂', 'θ₃']),
         ...traces(samples, (sample) => sample.qd, ['ω₁', 'ω₂', 'ω₃']),
         ...traces(samples, (sample) => sample.qdd, ['α₁', 'α₂', 'α₃']),
       ],
     },
-    { title: 'τ', yTitle: 'N·m', data: traces(samples, (sample) => sample.tau, ['τ₁', 'τ₂', 'τ₃']) },
+    { title: 'τ', yTitle: 'N·m', exportKey: 'torque', exportLabel: '力矩', data: traces(samples, (sample) => sample.tau, ['τ₁', 'τ₂', 'τ₃']) },
     {
       title: 'K / V / E',
       yTitle: 'J',
+      exportKey: 'energy',
+      exportLabel: '能量',
       data: traces(samples, (sample) => [sample.kinetic, sample.potential, sample.totalEnergy], ['K', 'V', 'E']),
     },
-    { title: 'P_i', yTitle: 'W', data: traces(samples, (sample) => sample.jointPower, ['P₁', 'P₂', 'P₃']) },
+    { title: 'P_i', yTitle: 'W', exportKey: 'joint-power', exportLabel: '功率', data: traces(samples, (sample) => sample.jointPower, ['P₁', 'P₂', 'P₃']) },
   ]
   const handleClick = (event: PlotMouseEvent) => {
     const x = event.points[0]?.x
@@ -63,11 +69,9 @@ export function TimeSeriesCharts({ samples, time, onTimeChange }: TimeSeriesChar
     <div className="time-series">
       <div className="time-series__toolbar">
         <strong>同步时间序列</strong>
-        <button onClick={() => exportGraph.current && void downloadPlotImage(exportGraph.current, 'svg')} type="button">导出 SVG</button>
-        <button onClick={() => exportGraph.current && void downloadPlotImage(exportGraph.current, 'png')} type="button">导出 PNG</button>
       </div>
       <div className="time-series__grid">
-        {groups.map((group, index) => {
+        {groups.map((group) => {
           const layout: Partial<Layout> = {
             title: { text: group.title },
             margin: { l: 52, r: 18, t: 42, b: 42 },
@@ -88,15 +92,26 @@ export function TimeSeriesCharts({ samples, time, onTimeChange }: TimeSeriesChar
             }],
             legend: { orientation: 'h' },
           }
-          return <Plot
-            config={{ displayModeBar: false, responsive: true }}
-            data={group.data}
-            key={group.title}
-            layout={layout}
-            onClick={handleClick}
-            onInitialized={(_, graph) => { if (index === 0) exportGraph.current = graph as PlotlyHTMLElement }}
-            useResizeHandler
-          />
+          const exportChart = (format: 'svg' | 'png') => {
+            const graph = exportGraphs.current[group.exportKey]
+            if (graph !== undefined) {
+              void downloadPlotImage(graph, format, `3r-dynamics-${group.exportKey}`)
+            }
+          }
+          return <section className="time-series__chart" key={group.title}>
+            <div className="time-series__chart-actions">
+              <button aria-label={`导出${group.exportLabel} SVG`} onClick={() => exportChart('svg')} type="button">SVG</button>
+              <button aria-label={`导出${group.exportLabel} PNG`} onClick={() => exportChart('png')} type="button">PNG</button>
+            </div>
+            <Plot
+              config={{ displayModeBar: false, responsive: true }}
+              data={group.data}
+              layout={layout}
+              onClick={handleClick}
+              onInitialized={(_, graph) => { exportGraphs.current[group.exportKey] = graph as PlotlyHTMLElement }}
+              useResizeHandler
+            />
+          </section>
         })}
       </div>
     </div>

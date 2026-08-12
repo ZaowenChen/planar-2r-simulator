@@ -90,12 +90,12 @@ function configFromDraft(
 function runSimulation(
   mode: ExperimentMode,
   draft: ExperimentDraft,
-): SimulationSamples | string {
+): { samples: SimulationSamples; duration: number; stepSize: number } | string {
   const config = configFromDraft(mode, draft)
   if (typeof config === 'string') return config
   const { parameters, jointState } = useLabStore.getState()
   try {
-    return mode === 'inverse'
+    const samples = mode === 'inverse'
       ? simulateInverseDynamics({
         trajectory: config.trajectory as TrajectoryConfig,
         duration: config.duration,
@@ -107,6 +107,7 @@ function runSimulation(
         duration: config.duration,
         stepSize: config.stepSize,
       }, parameters)
+    return { samples, duration: config.duration, stepSize: config.stepSize }
   } catch (error) {
     return error instanceof Error ? error.message : '仿真输入无效。'
   }
@@ -140,7 +141,7 @@ export function ExperimentPage() {
       stepSize: String(settings.integrationStep),
       primary: jointState.q.map(String) as unknown as [string, string, string],
     })
-    return typeof result === 'string' ? [] as unknown as SimulationSamples : result
+    return typeof result === 'string' ? [] as unknown as SimulationSamples : result.samples
   })
   const [editorError, setEditorError] = useState<string>()
   useAnimationClock(samples)
@@ -162,33 +163,39 @@ export function ExperimentPage() {
     currentSample.qdd.forEach((value, index) => store.setJointAcceleration(index, value))
   }, [currentSample])
 
+  const commitSimulation = (
+    nextMode: ExperimentMode,
+    result: { samples: SimulationSamples; duration: number; stepSize: number },
+  ) => {
+    const { experiment } = useLabStore.getState()
+    useLabStore.setState({
+      experiment: {
+        ...experiment,
+        mode: nextMode,
+        duration: result.duration,
+        integrationStep: result.stepSize,
+        isPlaying: false,
+      },
+      simulationTime: 0,
+    })
+    setSamples(result.samples)
+    setEditorError(undefined)
+  }
+
   const generate = (nextMode = mode) => {
     const result = runSimulation(nextMode, draft)
     if (typeof result === 'string') {
       setEditorError(result)
       return
     }
-    const duration = Number(draft.duration)
-    const stepSize = Number(draft.stepSize)
-    const store = useLabStore.getState()
-    store.setPlaying(false)
-    store.setExperimentDuration(duration)
-    store.setIntegrationStep(stepSize)
-    store.setSimulationTime(0)
-    setSamples(result)
-    setEditorError(undefined)
+    commitSimulation(nextMode, result)
   }
 
   const changeMode = (nextMode: ExperimentMode) => {
     if (nextMode === mode) return
-    useLabStore.getState().setExperimentMode(nextMode)
-    useLabStore.getState().resetSimulationTime()
     const result = runSimulation(nextMode, draft)
     if (typeof result === 'string') setEditorError(result)
-    else {
-      setSamples(result)
-      setEditorError(undefined)
-    }
+    else commitSimulation(nextMode, result)
   }
 
   const step = () => {
@@ -226,9 +233,11 @@ export function ExperimentPage() {
         <output data-testid="current-state">q = {vectorText(currentSample?.q)} rad；q̇ = {vectorText(currentSample?.qd)} rad/s</output>
         <output data-testid="current-torque">τ = {vectorText(currentSample?.tau)} N·m</output>
         <FormulaCard
-          definition={<BlockMath math={mode === 'inverse' ? '\boldsymbol{\tau}=\mathbf M\ddot{\mathbf q}+\mathbf C\dot{\mathbf q}+\mathbf g+\boldsymbol{\tau}_f' : '\ddot{\mathbf q}=\mathbf M^{-1}(\boldsymbol{\tau}-\mathbf C\dot{\mathbf q}-\mathbf g-\boldsymbol{\tau}_f)'} />}
-          result={<BlockMath math={`\mathbf q=${vectorText(currentSample?.q)},\quad\boldsymbol{\tau}=${vectorText(currentSample?.tau)}`} />}
-          substitution={<BlockMath math={`t=${sampleTime.toFixed(4)}\;\mathrm{s}`} />}
+          definition={<BlockMath math={mode === 'inverse'
+            ? String.raw`\boldsymbol{\tau}=\mathbf M\ddot{\mathbf q}+\mathbf C\dot{\mathbf q}+\mathbf g+\boldsymbol{\tau}_f`
+            : String.raw`\ddot{\mathbf q}=\mathbf M^{-1}(\boldsymbol{\tau}-\mathbf C\dot{\mathbf q}-\mathbf g-\boldsymbol{\tau}_f)`} />}
+          result={<BlockMath math={String.raw`\mathbf q=${vectorText(currentSample?.q)},\quad\boldsymbol{\tau}=${vectorText(currentSample?.tau)}`} />}
+          substitution={<BlockMath math={String.raw`t=${sampleTime.toFixed(4)}\;\mathrm{s}`} />}
           title={mode === 'inverse' ? '逆动力学实时结果' : '正动力学实时结果'}
         />
         <div className="playback-controls">
