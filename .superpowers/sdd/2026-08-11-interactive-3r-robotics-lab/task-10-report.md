@@ -30,3 +30,13 @@ Added gravity, viscous-friction, and friction-enable controls plus academic defi
 ## Concern
 
 The installed npm 11.5.2 emits an environment warning because Node 20.15.0 is below npm's preferred Node 20.17.0 minimum. It did not affect tests or typechecking.
+
+## Fix Round 1
+
+- Added an atomic multi-field parameter transaction. Resetting one link now updates its raw controls and last-valid calculation parameters together even when another link retains an invalid draft; the unrelated draft and its diagnostic remain visible.
+- Used the same transaction for symmetric off-diagonal inertia pairs and the all-dynamics reset.
+- Corrected the mass-matrix definition so the translational and world-rotated rotational inertia contributions are both grouped inside the link sum.
+- Added Chinese symbol meanings, physical SI units, and evaluated current-value substitutions to the eight dynamics result cards.
+- Standardized kinetic energy notation on `K` throughout the kinetic and total-energy cards.
+- TDD RED: the focused suite failed on the stale validated reset target, incomplete rendered mass formula, missing glossaries/current substitutions, and `T` kinetic notation.
+- Verification: focused dynamics tests 8/8 passed; TypeScript passed; full suite 18 files and 135/135 tests passed; `git diff --check` passed.

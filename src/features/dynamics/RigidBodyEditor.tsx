@@ -39,6 +39,7 @@ export function ParameterDraftField({
 }: ParameterDraftFieldProps) {
   const storedRaw = useLabStore((state) => state.rawParameters[path] ?? String(fallback))
   const setParameterField = useLabStore((state) => state.setParameterField)
+  const setParameterFieldsAtomically = useLabStore((state) => state.setParameterFieldsAtomically)
   const [draft, setDraft] = useState(storedRaw)
   const [error, setError] = useState<string>()
 
@@ -51,8 +52,11 @@ export function ParameterDraftField({
     const issue = localValidation(raw, constraint)
     setError(issue)
     if (issue !== undefined) return
-    setParameterField(path, raw)
-    if (mirrorPath !== undefined) setParameterField(mirrorPath, raw)
+    if (mirrorPath === undefined) {
+      setParameterField(path, raw)
+    } else {
+      setParameterFieldsAtomically({ [path]: raw, [mirrorPath]: raw })
+    }
   }
 
   return (
@@ -86,17 +90,20 @@ function inertiaIssueText(code: string): string {
 }
 
 function resetLink(linkIndex: number): void {
-  const setParameterField = useLabStore.getState().setParameterField
+  const setParameterFieldsAtomically = useLabStore.getState().setParameterFieldsAtomically
   const link = DEFAULT_ROBOT_PARAMETERS.links[linkIndex]
-  setParameterField(`links.${linkIndex}.mass`, String(link.mass))
+  const fields: Record<string, string> = {
+    [`links.${linkIndex}.mass`]: String(link.mass),
+  }
   link.centerOfMass.forEach((value, index) => {
-    setParameterField(`links.${linkIndex}.centerOfMass.${index}`, String(value))
+    fields[`links.${linkIndex}.centerOfMass.${index}`] = String(value)
   })
   link.inertia.forEach((row, rowIndex) => {
     row.forEach((value, columnIndex) => {
-      setParameterField(`links.${linkIndex}.inertia.${rowIndex}.${columnIndex}`, String(value))
+      fields[`links.${linkIndex}.inertia.${rowIndex}.${columnIndex}`] = String(value)
     })
   })
+  setParameterFieldsAtomically(fields)
 }
 
 export interface RigidBodyEditorProps {

@@ -28,24 +28,26 @@ function scalarText(value: number, precision = 4): string {
 }
 
 function resetDynamicsParameters(): void {
-  const { setFrictionEnabled, setParameterField } = useLabStore.getState()
+  const { setFrictionEnabled, setParameterFieldsAtomically } = useLabStore.getState()
+  const fields: Record<string, string> = {}
   DEFAULT_ROBOT_PARAMETERS.links.forEach((link, linkIndex) => {
-    setParameterField(`links.${linkIndex}.mass`, String(link.mass))
+    fields[`links.${linkIndex}.mass`] = String(link.mass)
     link.centerOfMass.forEach((value, componentIndex) => {
-      setParameterField(`links.${linkIndex}.centerOfMass.${componentIndex}`, String(value))
+      fields[`links.${linkIndex}.centerOfMass.${componentIndex}`] = String(value)
     })
     link.inertia.forEach((row, rowIndex) => {
       row.forEach((value, columnIndex) => {
-        setParameterField(`links.${linkIndex}.inertia.${rowIndex}.${columnIndex}`, String(value))
+        fields[`links.${linkIndex}.inertia.${rowIndex}.${columnIndex}`] = String(value)
       })
     })
   })
   DEFAULT_ROBOT_PARAMETERS.gravity.forEach((value, index) => {
-    setParameterField(`gravity.${index}`, String(value))
+    fields[`gravity.${index}`] = String(value)
   })
   DEFAULT_ROBOT_PARAMETERS.viscousFriction.forEach((value, index) => {
-    setParameterField(`viscousFriction.${index}`, String(value))
+    fields[`viscousFriction.${index}`] = String(value)
   })
+  setParameterFieldsAtomically(fields)
   setFrictionEnabled(DEFAULT_ROBOT_PARAMETERS.frictionEnabled)
 }
 
@@ -149,9 +151,15 @@ export function DynamicsPage() {
 
           <section data-testid="mass-matrix-result">
             <FormulaCard
-              definition={<BlockMath math="\mathbf M(\mathbf q)=\sum_i m_i\mathbf J_{v_i}^{\mathsf T}\mathbf J_{v_i}+\mathbf J_{\omega_i}^{\mathsf T}{}^0\mathbf I_i\mathbf J_{\omega_i}" />}
+              definition={<BlockMath math="\mathbf M(\mathbf q)=\sum_i\left(m_i\mathbf J_{v_i}^{\mathsf T}\mathbf J_{v_i}+\mathbf J_{\omega_i}^{\mathsf T}{}^0\mathbf R_i{}^{c_i}\mathbf I_i{}^0\mathbf R_i^{\mathsf T}\mathbf J_{\omega_i}\right)" />}
               result={<BlockMath math={`\\mathbf M(\\mathbf q)=${matrixLatex(dynamics.massMatrix)}`} />}
-              substitution={<BlockMath math={`\\mathbf q=${vectorLatex(jointState.q)},\\quad\\mathbf m=${vectorLatex(parameters.links.map((link) => link.mass))}`} />}
+              substitution={<BlockMath math={`\\mathbf M(\\mathbf q=${vectorLatex(jointState.q)})=${matrixLatex(dynamics.massMatrix)}\\;\\mathrm{kg\\,m^2}`} />}
+              symbols={[
+                { symbol: '\\mathbf M', meaning: '质量矩阵', unit: 'kg·m²' },
+                { symbol: '\\mathbf J_{v_i}', meaning: '第 i 连杆质心线速度雅可比', unit: 'm' },
+                { symbol: '\\mathbf J_{\\omega_i}', meaning: '第 i 连杆角速度雅可比' },
+                { symbol: '{}^{c_i}\\mathbf I_i', meaning: '质心坐标系惯性张量', unit: 'kg·m²' },
+              ]}
               title="质量矩阵 M(q)"
             />
             <MatrixTable label="质量矩阵" matrix={dynamics.massMatrix} precision={4} symbol={DISPLAY.massMatrix} unit="kg·m²" />
@@ -165,7 +173,12 @@ export function DynamicsPage() {
               </>
             )}
             result={<BlockMath math={`\\mathbf C(\\mathbf q,\\dot{\\mathbf q})=${matrixLatex(dynamics.coriolisMatrix)}`} />}
-            substitution={<BlockMath math={`\\mathbf q=${vectorLatex(jointState.q)},\\quad\\dot{\\mathbf q}=${vectorLatex(jointState.qd)}`} />}
+            substitution={<BlockMath math={`\\mathbf C(${vectorLatex(jointState.q)},${vectorLatex(jointState.qd)})=${matrixLatex(dynamics.coriolisMatrix)}\\;\\mathrm{kg\\,m^2/s}`} />}
+            symbols={[
+              { symbol: '\\mathbf C', meaning: '科氏矩阵', unit: 'kg·m²/s' },
+              { symbol: '\\Gamma_{ijk}', meaning: '第一类 Christoffel 符号', unit: 'kg·m²' },
+              { symbol: '\\dot{\\mathbf q}', meaning: '关节角速度', unit: 'rad/s' },
+            ]}
             title="科氏矩阵 C(q,q̇)"
           />
 
@@ -174,7 +187,11 @@ export function DynamicsPage() {
             <FormulaCard
               definition={<BlockMath math="\mathbf g(\mathbf q)=\frac{\partial V(\mathbf q)}{\partial\mathbf q}" />}
               result={<BlockMath math={`\\mathbf g(\\mathbf q)=${vectorLatex(dynamics.gravityTorque)}\\;\\mathrm{N\\,m}`} />}
-              substitution={<BlockMath math={`{}^0\\mathbf g=${vectorLatex(parameters.gravity)}\\;\\mathrm{m/s^2}`} />}
+              substitution={<BlockMath math={`\\mathbf g(${vectorLatex(jointState.q)})=${vectorLatex(dynamics.gravityTorque)}\\;\\mathrm{N\\,m}`} />}
+              symbols={[
+                { symbol: '\\mathbf g(\\mathbf q)', meaning: '重力广义力矩', unit: 'N·m' },
+                { symbol: 'V', meaning: '重力势能', unit: 'J' },
+              ]}
               title="重力项 g(q)"
             />
           </section>
@@ -184,33 +201,56 @@ export function DynamicsPage() {
             <FormulaCard
               definition={<BlockMath math="\boldsymbol{\tau}_f=\mathbf B\dot{\mathbf q},\qquad\mathbf B=\operatorname{diag}(b_1,b_2,b_3)" />}
               result={<BlockMath math={`\\boldsymbol{\\tau}_f=${vectorLatex(dynamics.frictionTorque)}\\;\\mathrm{N\\,m}`} />}
-              substitution={<BlockMath math={`\\mathbf b=${vectorLatex(parameters.viscousFriction)},\\quad\\dot{\\mathbf q}=${vectorLatex(jointState.qd)}`} />}
+              substitution={<BlockMath math={`\\operatorname{diag}(${parameters.viscousFriction.map((value) => value.toFixed(4)).join(',')})${vectorLatex(jointState.qd)}=${vectorLatex(dynamics.frictionTorque)}\\;\\mathrm{N\\,m}`} />}
+              symbols={[
+                { symbol: '\\boldsymbol{\\tau}_f', meaning: '粘性摩擦力矩', unit: 'N·m' },
+                { symbol: '\\mathbf B', meaning: '粘性摩擦系数矩阵', unit: 'N·m·s/rad' },
+              ]}
               title="粘性摩擦力矩"
             />
           </section>
 
           <FormulaCard
-            definition={<BlockMath math="T=\frac12\dot{\mathbf q}^{\mathsf T}\mathbf M(\mathbf q)\dot{\mathbf q}" />}
-            result={<BlockMath math={`T=${scalarText(energy.kinetic)}\\;\\mathrm J`} />}
-            substitution={<BlockMath math={`\\dot{\\mathbf q}=${vectorLatex(jointState.qd)}`} />}
+            definition={<BlockMath math="K=\frac12\dot{\mathbf q}^{\mathsf T}\mathbf M(\mathbf q)\dot{\mathbf q}" />}
+            result={<BlockMath math={`K=${scalarText(energy.kinetic)}\\;\\mathrm J`} />}
+            substitution={<BlockMath math={`K=\\frac12${vectorLatex(jointState.qd)}^{\\mathsf T}${matrixLatex(dynamics.massMatrix)}${vectorLatex(jointState.qd)}=${scalarText(energy.kinetic)}\\;\\mathrm J`} />}
+            symbols={[
+              { symbol: 'K', meaning: '系统动能', unit: 'J' },
+              { symbol: '\\dot{\\mathbf q}', meaning: '关节角速度', unit: 'rad/s' },
+            ]}
             title="动能"
           />
           <FormulaCard
             definition={<BlockMath math="V=-\sum_i m_i{}^0\mathbf g^{\mathsf T}{}^0\mathbf p_{C_i}" />}
             result={<BlockMath math={`V=${scalarText(energy.potential)}\\;\\mathrm J`} />}
-            substitution={<BlockMath math={`{}^0\\mathbf g=${vectorLatex(parameters.gravity)}`} />}
+            substitution={<BlockMath math={`V(\\mathbf q=${vectorLatex(jointState.q)})=${scalarText(energy.potential)}\\;\\mathrm J`} />}
+            symbols={[
+              { symbol: 'V', meaning: '系统重力势能', unit: 'J' },
+              { symbol: '{}^0\\mathbf p_{C_i}', meaning: '第 i 连杆质心位置', unit: 'm' },
+              { symbol: '{}^0\\mathbf g', meaning: '重力加速度', unit: 'm/s²' },
+            ]}
             title="势能"
           />
           <FormulaCard
-            definition={<BlockMath math="E=T+V" />}
+            definition={<BlockMath math="E=K+V" />}
             result={<BlockMath math={`E=${scalarText(energy.total)}\\;\\mathrm J`} />}
-            substitution={<BlockMath math={`E=${scalarText(energy.kinetic)}+${scalarText(energy.potential)}`} />}
+            substitution={<BlockMath math={`E=${scalarText(energy.kinetic)}+${scalarText(energy.potential)}=${scalarText(energy.total)}\\;\\mathrm J`} />}
+            symbols={[
+              { symbol: 'E', meaning: '总机械能', unit: 'J' },
+              { symbol: 'K', meaning: '系统动能', unit: 'J' },
+              { symbol: 'V', meaning: '系统重力势能', unit: 'J' },
+            ]}
             title="总机械能"
           />
           <FormulaCard
             definition={<BlockMath math="\mathbf P=\boldsymbol{\tau}\odot\dot{\mathbf q}" />}
             result={<BlockMath math={`\\mathbf P=${vectorLatex(energy.jointPower)}\\;\\mathrm W`} />}
-            substitution={<BlockMath math={`\\boldsymbol{\\tau}=${vectorLatex(dynamics.tau)},\\quad\\dot{\\mathbf q}=${vectorLatex(jointState.qd)}`} />}
+            substitution={<BlockMath math={`\\mathbf P=${vectorLatex(dynamics.tau)}\\odot${vectorLatex(jointState.qd)}=${vectorLatex(energy.jointPower)}\\;\\mathrm W`} />}
+            symbols={[
+              { symbol: '\\mathbf P', meaning: '各关节机械功率', unit: 'W' },
+              { symbol: '\\boldsymbol{\\tau}', meaning: '关节驱动力矩', unit: 'N·m' },
+              { symbol: '\\odot', meaning: '逐元素乘法' },
+            ]}
             title="关节功率"
           />
         </div>

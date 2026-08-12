@@ -49,6 +49,7 @@ export interface LabStore {
   simulationTime: number
   calculation: LabCalculation
   setParameterField: (path: string, rawValue: string) => void
+  setParameterFieldsAtomically: (fields: Record<string, string>) => void
   setFrictionEnabled: (enabled: boolean) => void
   setJoint: (index: number, value: number) => void
   setJointVector: (q: Vector3) => void
@@ -231,6 +232,35 @@ export const useLabStore = create<LabStore>((set, get) => ({
       parameterIssues: [],
       fieldIssues: {},
       calculation: calculateLabState(candidate, get().jointState),
+    })
+  },
+
+  setParameterFieldsAtomically: (fields) => {
+    if (Object.keys(fields).length === 0) return
+    const rawParameters = { ...get().rawParameters, ...fields }
+    const transaction = deriveParameterCandidate(get().parameters, fields)
+    const draftState = deriveParameterCandidate(
+      Object.keys(transaction.fieldIssues).length === 0
+        ? transaction.candidate
+        : get().parameters,
+      rawParameters,
+    )
+
+    if (Object.keys(transaction.fieldIssues).length > 0) {
+      set({
+        rawParameters,
+        parameterIssues: draftState.parameterIssues,
+        fieldIssues: draftState.fieldIssues,
+      })
+      return
+    }
+
+    set({
+      rawParameters,
+      parameters: transaction.candidate,
+      parameterIssues: draftState.parameterIssues,
+      fieldIssues: draftState.fieldIssues,
+      calculation: calculateLabState(transaction.candidate, get().jointState),
     })
   },
 
