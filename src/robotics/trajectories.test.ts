@@ -103,4 +103,20 @@ describe('torque profiles', () => {
     expect(evaluateTorqueProfile(profile, 0.4)).toEqual([0, 2, 0])
     expect(evaluateTorqueProfile(profile, 2)).toEqual([0, 0, 3])
   })
+
+  it('selects the latest eligible piecewise segment regardless of input order', () => {
+    const profile = {
+      type: 'piecewise-constant',
+      segments: [
+        { time: 0.8, value: [0, 0, 3] },
+        { time: 0, value: [1, 0, 0] },
+        { time: 0.4, value: [0, 2, 0] },
+      ],
+      duration: 1,
+    } as const
+
+    expect(evaluateTorqueProfile(profile, 0)).toEqual([1, 0, 0])
+    expect(evaluateTorqueProfile(profile, 0.6)).toEqual([0, 2, 0])
+    expect(evaluateTorqueProfile(profile, 1)).toEqual([0, 0, 3])
+  })
 })

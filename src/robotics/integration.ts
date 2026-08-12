@@ -2,8 +2,10 @@ import { energy, forwardDynamics, inverseDynamics } from './dynamics'
 import {
   evaluateTorqueProfile,
   evaluateTrajectory,
+  torqueDiscontinuityTimes,
 } from './trajectories'
 import type {
+  TorqueEvaluationSide,
   TorqueProfile,
   TrajectoryConfig,
   TrajectorySample,
@@ -141,13 +143,14 @@ function stateDerivative(
   time: number,
   profile: TorqueProfile,
   parameters: RobotParameters,
+  torqueSide: TorqueEvaluationSide = 'right',
 ): JointState6 {
   const q = qFromState(state)
   const qd = qdFromState(state)
   const qdd = forwardDynamics(
     q,
     qd,
-    evaluateTorqueProfile(profile, time),
+    evaluateTorqueProfile(profile, time, torqueSide),
     parameters,
   )
   return [qd[0], qd[1], qd[2], qdd[0], qdd[1], qdd[2]]
@@ -159,6 +162,7 @@ function rk4JointStep(
   stepSize: number,
   profile: TorqueProfile,
   parameters: RobotParameters,
+  closingTorqueSide: TorqueEvaluationSide = 'right',
 ): JointState6 {
   const k1 = stateDerivative(state, time, profile, parameters)
   const k2 = stateDerivative(
@@ -178,12 +182,43 @@ function rk4JointStep(
     time + stepSize,
     profile,
     parameters,
+    closingTorqueSide,
   )
   return state.map((value, index) => (
     value + stepSize * (
       k1[index] + 2 * k2[index] + 2 * k3[index] + k4[index]
     ) / 6
   )) as unknown as JointState6
+}
+
+function integrateJointInterval(
+  initialState: JointState6,
+  initialTime: number,
+  finalTime: number,
+  profile: TorqueProfile,
+  parameters: RobotParameters,
+): JointState6 {
+  const discontinuities = torqueDiscontinuityTimes(profile).filter((time) => (
+    time > initialTime && time <= finalTime
+  ))
+  const boundaries = discontinuities.includes(finalTime)
+    ? discontinuities
+    : [...discontinuities, finalTime]
+  let state = initialState
+  let time = initialTime
+
+  for (const boundary of boundaries) {
+    state = rk4JointStep(
+      state,
+      time,
+      boundary - time,
+      profile,
+      parameters,
+      discontinuities.includes(boundary) ? 'left' : 'right',
+    )
+    time = boundary
+  }
+  return state
 }
 
 function jointLimitDiagnostic(
@@ -318,10 +353,10 @@ export function simulateForwardDynamics(
 
     const nextTime = times[index + 1]
     if (nextTime !== undefined) {
-      const nextState = rk4JointStep(
+      const nextState = integrateJointInterval(
         state,
         time,
-        nextTime - time,
+        nextTime,
         config.torqueProfile,
         parameters,
       )

@@ -64,6 +64,8 @@ export type TorqueProfile =
   | SineTorqueProfile
   | PiecewiseConstantTorqueProfile
 
+export type TorqueEvaluationSide = 'left' | 'right'
+
 function requireDuration(duration: number): void {
   if (!Number.isFinite(duration) || duration <= 0) {
     throw new RangeError('Duration must be finite and positive')
@@ -154,13 +156,17 @@ export function evaluateTrajectory(
 export function evaluateTorqueProfile(
   profile: TorqueProfile,
   time: number,
+  side: TorqueEvaluationSide = 'right',
 ): Vector3 {
   const t = clampedTime(time, profile.duration)
   switch (profile.type) {
     case 'constant':
       return profile.value
     case 'step':
-      return t < profile.stepTime ? profile.before : profile.after
+      return t < profile.stepTime
+        || (side === 'left' && t === profile.stepTime)
+        ? profile.before
+        : profile.after
     case 'sine':
       return mapVector(profile.offset, (value, index) => (
         value + profile.amplitude[index] * Math.sin(
@@ -171,12 +177,33 @@ export function evaluateTorqueProfile(
       if (profile.segments.length === 0) {
         throw new RangeError('Piecewise-constant profile needs at least one segment')
       }
-      let selected = profile.segments[0]
+      if (!profile.segments.some(({ time: segmentTime }) => segmentTime === 0)) {
+        throw new RangeError('Piecewise-constant profile must have a segment at time zero')
+      }
+      let selected: PiecewiseConstantTorqueProfile['segments'][number] | undefined
       for (const segment of profile.segments) {
-        if (segment.time > t) break
-        selected = segment
+        const eligible = side === 'left' ? segment.time < t : segment.time <= t
+        if (eligible && (selected === undefined || segment.time >= selected.time)) {
+          selected = segment
+        }
+      }
+      if (selected === undefined) {
+        throw new RangeError('Piecewise-constant profile has no value before evaluation time')
       }
       return selected.value
     }
   }
+}
+
+export function torqueDiscontinuityTimes(
+  profile: TorqueProfile,
+): readonly number[] {
+  const times = profile.type === 'step'
+    ? [profile.stepTime]
+    : profile.type === 'piecewise-constant'
+      ? profile.segments.map(({ time }) => time)
+      : []
+  return [...new Set(times)]
+    .filter((time) => Number.isFinite(time) && time > 0 && time <= profile.duration)
+    .sort((left, right) => left - right)
 }

@@ -118,6 +118,56 @@ describe('forward-dynamics simulation', () => {
     expect(samples.map(({ time }) => time)).toEqual([0, 0.1, 0.2, 0.25])
   })
 
+  it('does not apply post-step torque to the interval ending at an aligned switch', () => {
+    const parameters = withParameters({ gravity: [0, 0, 0], frictionEnabled: false })
+    const samples = simulateForwardDynamics({
+      initialState: { q: [0, 0, 0], qd: [0, 0, 0] },
+      torqueProfile: {
+        type: 'step',
+        before: [0, 0, 0],
+        after: [1, 0, 0],
+        stepTime: 0.1,
+        duration: 0.2,
+      },
+      duration: 0.2,
+      stepSize: 0.1,
+    }, parameters)
+
+    expect(samples[1].time).toBe(0.1)
+    expect(samples[1].q).toEqual([0, 0, 0])
+    expect(samples[1].qd).toEqual([0, 0, 0])
+    expect(samples[2].qd[0]).toBeGreaterThan(0)
+  })
+
+  it('splits an integration interval at a non-aligned torque discontinuity', () => {
+    const parameters = withParameters({ gravity: [0, 0, 0], frictionEnabled: false })
+    const switched = simulateForwardDynamics({
+      initialState: { q: [0, 0, 0], qd: [0, 0, 0] },
+      torqueProfile: {
+        type: 'step',
+        before: [0, 0, 0],
+        after: [1, 0, 0],
+        stepTime: 0.15,
+        duration: 0.2,
+      },
+      duration: 0.2,
+      stepSize: 0.2,
+    }, parameters)
+    const postSwitchOnly = simulateForwardDynamics({
+      initialState: { q: [0, 0, 0], qd: [0, 0, 0] },
+      torqueProfile: {
+        type: 'constant',
+        value: [1, 0, 0],
+        duration: 0.05,
+      },
+      duration: 0.05,
+      stepSize: 0.05,
+    }, parameters)
+
+    expectVectorClose(switched[1].q, postSwitchOnly[1].q, 1e-12)
+    expectVectorClose(switched[1].qd, postSwitchOnly[1].qd, 1e-12)
+  })
+
   it('stops before an out-of-limit sample and returns its diagnostic', () => {
     const samples = simulateForwardDynamics({
       initialState: { q: [Math.PI - 0.001, 0, 0], qd: [1, 0, 0] },
