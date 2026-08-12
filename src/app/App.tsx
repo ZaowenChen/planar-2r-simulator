@@ -2,6 +2,8 @@ import { BlockMath, InlineMath } from 'react-katex'
 import { FormulaCard } from '../components/FormulaCard'
 import { MatrixTable } from '../components/MatrixTable'
 import { StatusBanner } from '../components/StatusBanner'
+import { KinematicsPage } from '../features/kinematics/KinematicsPage'
+import { RobotModelPage } from '../features/model/RobotModelPage'
 import { useLabStore } from '../state/labStore'
 import type { LabModule } from '../state/labStore'
 import { DISPLAY } from '../symbols/display'
@@ -73,7 +75,9 @@ export function App() {
         </StatusBanner>
       </section>
 
-      <WorkbenchLayout
+      {activeModule === 'model' && <RobotModelPage />}
+      {activeModule === 'kinematics' && <KinematicsPage />}
+      {(activeModule === 'dynamics' || activeModule === 'experiments') && <WorkbenchLayout
         visual={(
           <div className="scene-placeholder">
             <span className="scene-placeholder__axis" aria-hidden="true">x · y · z</span>
@@ -119,7 +123,7 @@ export function App() {
             />
           </div>
         )}
-      />
+      />}
     </main>
   )
 }

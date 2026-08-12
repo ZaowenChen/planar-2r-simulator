@@ -1,11 +1,17 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { calculationSnapshotCsv } from '../symbols/display'
 import { useLabStore } from '../state/labStore'
 import { App } from './App'
 
+vi.mock('@react-three/fiber', async () => {
+  const actual = await vi.importActual<typeof import('@react-three/fiber')>('@react-three/fiber')
+  return { ...actual, Canvas: () => <div data-testid="app-scene" /> }
+})
+
 afterEach(cleanup)
+beforeEach(() => useLabStore.getState().resetLab())
 
 describe('App', () => {
   it('names the laboratory and exposes its four learning modules', () => {
@@ -44,5 +50,16 @@ describe('App', () => {
     expect(screen.getByRole('region', { name: '机器人三维视图' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: '实验控制' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: '公式与结果' })).toBeInTheDocument()
+  })
+
+  it('routes the model and kinematics tabs to their complete learning modules', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(screen.getByRole('table', { name: '标准 D–H 参数表' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '运动学' }))
+
+    expect(screen.getByLabelText('关节角 θ₂')).toBeInTheDocument()
+    expect(screen.getByTestId('jacobian-result')).toBeInTheDocument()
   })
 })

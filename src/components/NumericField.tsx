@@ -26,6 +26,10 @@ export function NumericField({
 }: NumericFieldProps) {
   const id = useId()
   const errorId = `${id}-error`
+  const unitId = `${id}-unit`
+  const describedBy = [unit !== undefined ? unitId : undefined, error !== undefined ? errorId : undefined]
+    .filter(Boolean)
+    .join(' ') || undefined
   const commit = () => onCommit?.(String(value))
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     onKeyDown?.(event)
@@ -40,8 +44,9 @@ export function NumericField({
       <span className="numeric-field__control">
         <input
           {...inputProps}
-          aria-describedby={error !== undefined ? errorId : undefined}
+          aria-describedby={describedBy}
           aria-invalid={error !== undefined}
+          aria-label={label}
           id={id}
           inputMode="decimal"
           onBlur={(event) => {
@@ -53,7 +58,7 @@ export function NumericField({
           type="text"
           value={value}
         />
-        {unit !== undefined && <span className="numeric-field__unit">{unit}</span>}
+        {unit !== undefined && <span className="numeric-field__unit" id={unitId}>{unit}</span>}
       </span>
       {error !== undefined && <span className="numeric-field__error" id={errorId}>{error}</span>}
     </label>
