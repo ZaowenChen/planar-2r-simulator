@@ -1,0 +1,120 @@
+:root {
+  color: #17283c;
+  background: #f3efe5;
+  font-family: Inter, "Noto Sans CJK SC", "PingFang SC", sans-serif;
+  font-synthesis: none;
+  --canvas: #f3efe5;
+  --paper: #fbf8f0;
+  --ink: #17283c;
+  --muted: #667078;
+  --rule: #c9c4b7;
+  --teal: #167b78;
+  --teal-soft: #dcecea;
+  --amber: #bd7718;
+  --amber-soft: #f4e7ca;
+  --error: #a74736;
+  --serif: "Noto Serif CJK SC", "Songti SC", STSong, serif;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--canvas); }
+button, input { font: inherit; }
+button, input { min-height: 44px; }
+button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-offset: 2px; }
+
+.lab-shell { width: min(1560px, 100%); margin: 0 auto; padding: 32px clamp(20px, 4vw, 64px) 64px; }
+.lab-masthead { display: flex; align-items: end; justify-content: space-between; gap: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--ink); }
+.lab-masthead h1, .module-heading h2, .formula-card h3, .control-sheet h3 { margin: 0; font-family: var(--serif); font-weight: 600; }
+.lab-masthead h1 { font-size: clamp(1.8rem, 3.2vw, 3.2rem); line-height: 1.15; letter-spacing: .02em; }
+.eyebrow, .section-label, .module-heading p:first-child { margin: 0 0 8px; color: var(--teal); font-size: .75rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.lab-masthead__note { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.6; text-align: right; }
+
+.lab-navigation { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
+.lab-navigation button { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; border: 0; border-right: 1px solid var(--rule); color: var(--ink); background: transparent; cursor: pointer; }
+.lab-navigation button:last-child { border-right: 0; }
+.lab-navigation button span { color: var(--muted); font-size: .7rem; font-variant-numeric: tabular-nums; }
+.lab-navigation button[aria-current="page"] { color: #fff; background: var(--ink); }
+.lab-navigation button[aria-current="page"] span { color: #90cbc5; }
+
+.module-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(220px, auto); gap: 20px; align-items: center; padding: 28px 0; }
+.module-heading > span { align-self: start; color: var(--teal); font-family: Georgia, serif; font-size: 1.15rem; }
+.module-heading h2 { font-size: 1.75rem; }
+.module-heading p:last-child { margin: 7px 0 0; color: var(--muted); }
+
+.workbench { display: grid; grid-template-columns: minmax(360px, 1.25fr) minmax(260px, .85fr) minmax(340px, 1fr); border: 1px solid var(--ink); background: var(--paper); }
+.workbench > section { min-width: 0; padding: 20px; border-right: 1px solid var(--rule); }
+.workbench > section:last-child { border-right: 0; }
+.workbench__timeline { grid-column: 1 / -1; border-top: 1px solid var(--rule); }
+
+.scene-placeholder { position: relative; display: grid; min-height: 470px; place-items: end start; overflow: hidden; padding: 28px; color: #fff; background: linear-gradient(150deg, #203950, #142638 62%, #0b5557); }
+.scene-placeholder__axis { position: absolute; top: 20px; right: 20px; color: #93c9c4; font: .72rem monospace; letter-spacing: .2em; }
+.scene-placeholder__robot { position: absolute; inset: 18% 15% 30%; transform: rotate(-8deg); }
+.scene-placeholder__robot i { position: absolute; display: block; width: 16px; height: 16px; border: 4px solid #e9c16c; border-radius: 50%; }
+.scene-placeholder__robot i:nth-child(1) { left: 12%; bottom: 12%; }
+.scene-placeholder__robot i:nth-child(2) { left: 32%; bottom: 42%; }
+.scene-placeholder__robot i:nth-child(3) { left: 61%; bottom: 65%; }
+.scene-placeholder__robot i:nth-child(4) { left: 84%; bottom: 50%; }
+.scene-placeholder__robot::before, .scene-placeholder__robot::after { position: absolute; height: 5px; background: #dcecea; content: ""; transform-origin: left; }
+.scene-placeholder__robot::before { left: 14%; bottom: 16%; width: 53%; transform: rotate(-46deg); }
+.scene-placeholder__robot::after { left: 62%; bottom: 68%; width: 28%; transform: rotate(32deg); }
+.scene-placeholder p { margin: 0 0 8px; color: #a9d2ce; font-size: .72rem; letter-spacing: .1em; }
+.scene-placeholder strong { display: block; font-size: 1.2rem; }
+.scene-placeholder output { display: block; margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+.control-sheet h3 { margin-bottom: 18px; font-size: 1.5rem; }
+.control-sheet dl { margin: 0; border-top: 1px solid var(--rule); }
+.control-sheet dl div { display: flex; align-items: center; justify-content: space-between; min-height: 55px; border-bottom: 1px solid var(--rule); }
+.control-sheet dd { margin: 0; font-variant-numeric: tabular-nums; }
+.control-sheet dd span { color: var(--muted); font-size: .75rem; }
+.control-sheet__note { margin-top: 28px; color: var(--muted); font-size: .85rem; line-height: 1.7; }
+
+.analysis-stack { display: grid; gap: 18px; }
+.formula-card { border-top: 3px solid var(--teal); background: #fffdf8; box-shadow: 0 8px 24px rgb(23 40 60 / 6%); }
+.formula-card__header { padding: 16px 16px 0; }
+.formula-card__header h3 { font-size: 1.1rem; }
+.formula-card__tabs { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; border-bottom: 1px solid var(--rule); }
+.formula-card__tabs button { min-height: 44px; border: 0; border-bottom: 3px solid transparent; color: var(--muted); background: transparent; cursor: pointer; }
+.formula-card__tabs button[aria-selected="true"] { border-bottom-color: var(--teal); color: var(--ink); font-weight: 700; }
+.formula-card__panel { min-height: 100px; overflow-x: auto; padding: 16px; }
+.formula-card__symbols { margin: 0; padding: 12px 16px 16px; border-top: 1px solid var(--rule); }
+.formula-card__symbols div { display: grid; grid-template-columns: minmax(64px, auto) 1fr; gap: 12px; padding: 5px 0; }
+.formula-card__symbols dd { display: flex; justify-content: space-between; margin: 0; color: var(--muted); font-size: .8rem; }
+.formula-card__symbols dd span { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.matrix-table-wrap { overflow-x: auto; }
+.matrix-table { width: 100%; border-collapse: collapse; background: #fffdf8; font-variant-numeric: tabular-nums; }
+.matrix-table caption { padding: 12px; border: 1px solid var(--rule); border-bottom: 0; text-align: left; }
+.matrix-table caption > span { margin-left: 8px; color: var(--muted); font-size: .78rem; }
+.matrix-table caption small { float: right; color: var(--muted); }
+.matrix-table td { padding: 10px; border: 1px solid var(--rule); text-align: right; }
+
+.numeric-field { display: grid; gap: 6px; }
+.numeric-field__label { font-size: .85rem; font-weight: 600; }
+.numeric-field__control { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.numeric-field input { width: 100%; padding: 8px 10px; border: 1px solid var(--rule); color: var(--ink); background: #fff; font-variant-numeric: tabular-nums; }
+.numeric-field input[aria-invalid="true"] { border-color: var(--error); }
+.numeric-field__unit { display: grid; min-width: 54px; place-items: center; border: 1px solid var(--rule); border-left: 0; color: var(--muted); background: #eeeadf; }
+.numeric-field__error { color: var(--error); font-size: .78rem; }
+
+.status-banner { padding: 10px 14px; border-left: 3px solid var(--teal); background: var(--teal-soft); font-size: .78rem; }
+.status-banner strong { display: block; }
+.status-banner > div { margin-top: 4px; color: var(--muted); }
+.status-banner--warning { border-left-color: var(--amber); background: var(--amber-soft); }
+.status-banner--error { border-left-color: var(--error); background: #f3ddd8; }
+
+@media (max-width: 1023px) {
+  .lab-shell { padding-inline: 20px; }
+  .lab-navigation { overflow-x: auto; grid-template-columns: repeat(4, minmax(170px, 1fr)); }
+  .workbench { grid-template-columns: 1fr; }
+  .workbench > section { border-right: 0; border-bottom: 1px solid var(--rule); }
+  .workbench > section:last-child { border-bottom: 0; }
+  .scene-placeholder { min-height: 380px; }
+}
+
+@media (max-width: 680px) {
+  .lab-masthead { align-items: start; flex-direction: column; }
+  .lab-masthead__note { text-align: left; }
+  .module-heading { grid-template-columns: auto 1fr; }
+  .module-heading .status-banner { grid-column: 1 / -1; }
+}
