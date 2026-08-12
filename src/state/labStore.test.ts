@@ -19,6 +19,36 @@ describe('shared laboratory store', () => {
     expect(after.calculation.jacobian).toHaveLength(6)
   })
 
+  it('publishes one atomic result graph when the whole joint vector changes', () => {
+    const before = useLabStore.getState().calculation.revision
+    const snapshots: Array<{ q: readonly number[]; revision: number }> = []
+    const unsubscribe = useLabStore.subscribe((state) => {
+      snapshots.push({ q: state.jointState.q, revision: state.calculation.revision })
+    })
+
+    useLabStore.getState().setJointVector([0.1, 0.2, -0.3])
+    unsubscribe()
+
+    expect(snapshots).toEqual([{
+      q: [0.1, 0.2, -0.3],
+      revision: before + 1,
+    }])
+  })
+
+  it('does not publish or recalculate an unchanged joint value', () => {
+    const before = useLabStore.getState()
+    let publications = 0
+    const unsubscribe = useLabStore.subscribe(() => {
+      publications += 1
+    })
+
+    before.setJoint(1, before.jointState.q[1])
+    unsubscribe()
+
+    expect(useLabStore.getState().calculation.revision).toBe(before.calculation.revision)
+    expect(publications).toBe(0)
+  })
+
   it('preserves the last valid calculation while a raw parameter edit is invalid', () => {
     const before = useLabStore.getState()
     const revision = before.calculation.revision

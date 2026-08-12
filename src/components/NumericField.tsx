@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useRef } from 'react'
 import type { InputHTMLAttributes, KeyboardEvent } from 'react'
 
 export interface NumericFieldProps extends Omit<
@@ -25,6 +25,7 @@ export function NumericField({
   ...inputProps
 }: NumericFieldProps) {
   const id = useId()
+  const suppressNextBlurCommit = useRef(false)
   const errorId = `${id}-error`
   const unitId = `${id}-unit`
   const describedBy = [unit !== undefined ? unitId : undefined, error !== undefined ? errorId : undefined]
@@ -35,6 +36,7 @@ export function NumericField({
     onKeyDown?.(event)
     if (!event.defaultPrevented && event.key === 'Enter') {
       commit()
+      suppressNextBlurCommit.current = true
     }
   }
 
@@ -51,9 +53,16 @@ export function NumericField({
           inputMode="decimal"
           onBlur={(event) => {
             onBlur?.(event)
-            commit()
+            if (suppressNextBlurCommit.current) {
+              suppressNextBlurCommit.current = false
+            } else {
+              commit()
+            }
           }}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            suppressNextBlurCommit.current = false
+            onChange(event.target.value)
+          }}
           onKeyDown={handleKeyDown}
           type="text"
           value={value}

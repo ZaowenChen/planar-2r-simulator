@@ -14,7 +14,7 @@ export function InverseKinematicsPanel() {
   const q = useLabStore((state) => state.jointState.q)
   const angleUnit = useLabStore((state) => state.angleUnit)
   const setDesiredPosition = useLabStore((state) => state.setDesiredPosition)
-  const setJoint = useLabStore((state) => state.setJoint)
+  const setJointVector = useLabStore((state) => state.setJointVector)
   const [drafts, setDrafts] = useState(() => desiredPosition.map(String))
   const [issues, setIssues] = useState<Record<number, string>>({})
   const result = useMemo(
@@ -91,7 +91,7 @@ export function InverseKinematicsPanel() {
       )}
       <button
         disabled={selectedSolution === undefined}
-        onClick={() => selectedSolution?.q.forEach((value, index) => setJoint(index, value))}
+        onClick={() => selectedSolution && setJointVector(selectedSolution.q)}
         type="button"
       >
         应用所选逆解

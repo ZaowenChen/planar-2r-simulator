@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLabStore } from '../../state/labStore'
@@ -64,5 +64,20 @@ describe('RobotModelPage', () => {
     expect(screen.queryByText('连杆长度必须为正数。')).not.toBeInTheDocument()
     expect(useLabStore.getState().parameters.geometry.l2).toBe(2.4)
     expect(useLabStore.getState().calculation.revision).not.toBe(before)
+  })
+
+  it('clears a stale local error when an external valid parameter refreshes the draft', async () => {
+    const user = userEvent.setup()
+    render(<RobotModelPage />)
+    const input = screen.getByLabelText('第二连杆长度 l₂')
+
+    await user.clear(input)
+    await user.type(input, '0{Enter}')
+    expect(screen.getByText('连杆长度必须为正数。')).toBeInTheDocument()
+
+    act(() => useLabStore.getState().setParameterField('geometry.l2', '2.6'))
+
+    expect(input).toHaveValue('2.6')
+    expect(screen.queryByText('连杆长度必须为正数。')).not.toBeInTheDocument()
   })
 })

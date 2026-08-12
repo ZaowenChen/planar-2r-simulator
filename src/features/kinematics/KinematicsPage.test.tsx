@@ -32,9 +32,12 @@ describe('KinematicsPage', () => {
     await user.clear(screen.getByLabelText('关节角 θ₂'))
     await user.type(screen.getByLabelText('关节角 θ₂'), '30{Enter}')
 
+    expect(useLabStore.getState().calculation.revision).toBe(Number(before) + 1)
+    await user.tab()
+
     expect(endpoint).toHaveTextContent('m')
     const after = endpoint.getAttribute('data-revision')
-    expect(after).not.toBe(before)
+    expect(after).toBe(String(Number(before) + 1))
     expect(screen.getByTestId('transform-result')).toHaveAttribute('data-revision', after)
     expect(screen.getByTestId('jacobian-result')).toHaveAttribute('data-revision', after)
     expect(screen.getByTestId('scene-result')).toHaveAttribute('data-revision', after)
@@ -55,6 +58,21 @@ describe('KinematicsPage', () => {
     expect(useLabStore.getState().jointState.q).toEqual(qBefore)
   })
 
+  it('clears a stale angle error when a unit switch refreshes the draft', async () => {
+    const user = userEvent.setup()
+    render(<KinematicsPage />)
+    const angle = screen.getByLabelText('关节角 θ₁')
+
+    await user.clear(angle)
+    await user.type(angle, 'invalid{Enter}')
+    expect(screen.getByText('请输入有限角度。')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: '弧度' }))
+
+    expect(angle).toHaveValue('0.5236')
+    expect(screen.queryByText('请输入有限角度。')).not.toBeInTheDocument()
+  })
+
   it('shows and applies both inverse-kinematics elbow branches', async () => {
     const user = userEvent.setup()
     render(<KinematicsPage />)
@@ -64,9 +82,17 @@ describe('KinematicsPage', () => {
     expect(within(solutions).getByRole('radio', { name: /肘上解/ })).toBeInTheDocument()
 
     await user.click(within(solutions).getByRole('radio', { name: /肘上解/ }))
+    const revisionBefore = useLabStore.getState().calculation.revision
+    const observedPoses: Array<readonly number[]> = []
+    const unsubscribe = useLabStore.subscribe((state) => {
+      observedPoses.push(state.jointState.q)
+    })
     await user.click(screen.getByRole('button', { name: '应用所选逆解' }))
+    unsubscribe()
 
     expect(useLabStore.getState().jointState.q[2]).toBeLessThanOrEqual(0)
+    expect(useLabStore.getState().calculation.revision).toBe(revisionBefore + 1)
+    expect(observedPoses).toEqual([useLabStore.getState().jointState.q])
   })
 
   it('keeps the last valid pose when the desired position is unreachable', async () => {

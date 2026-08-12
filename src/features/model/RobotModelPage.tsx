@@ -28,7 +28,10 @@ function ParameterField({ label, path, unit, value, constraint }: ParameterField
   const [draft, setDraft] = useState(String(value))
   const [localIssue, setLocalIssue] = useState<string>()
 
-  useEffect(() => setDraft(String(value)), [value])
+  useEffect(() => {
+    setDraft(String(value))
+    setLocalIssue(undefined)
+  }, [value])
 
   const commit = (raw: string) => {
     const issue = validationMessage(constraint, raw)

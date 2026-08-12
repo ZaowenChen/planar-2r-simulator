@@ -20,6 +20,7 @@ export function JointControls() {
 
   useEffect(() => {
     setDrafts(q.map((value) => displayAngle(value, angleUnit)))
+    setIssues({})
   }, [angleUnit, q])
 
   const commit = (index: number, raw: string) => {

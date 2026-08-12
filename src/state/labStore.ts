@@ -51,6 +51,7 @@ export interface LabStore {
   setParameterField: (path: string, rawValue: string) => void
   setFrictionEnabled: (enabled: boolean) => void
   setJoint: (index: number, value: number) => void
+  setJointVector: (q: Vector3) => void
   setJointVelocity: (index: number, value: number) => void
   setJointAcceleration: (index: number, value: number) => void
   setDesiredPosition: (index: number, value: number) => void
@@ -180,6 +181,10 @@ function replaceVectorValue(vector: Vector3, index: number, value: number): Vect
   return next
 }
 
+function vectorsEqual(left: Vector3, right: Vector3): boolean {
+  return left.every((value, index) => value === right[index])
+}
+
 function initialState() {
   const parameters = clone(DEFAULT_ROBOT_PARAMETERS)
   const jointState = clone(DEFAULT_JOINT_STATE)
@@ -209,6 +214,7 @@ export const useLabStore = create<LabStore>((set, get) => ({
   ...initialState(),
 
   setParameterField: (path, rawValue) => {
+    if (get().rawParameters[path] === rawValue) return
     const rawParameters = { ...get().rawParameters, [path]: rawValue }
     const { candidate, parameterIssues, fieldIssues } = deriveParameterCandidate(
       get().parameters,
@@ -238,11 +244,21 @@ export const useLabStore = create<LabStore>((set, get) => ({
 
   setJoint: (index, value) => {
     if (!Number.isFinite(value)) return
+    if (get().jointState.q[index] === value) return
     const jointState = {
       ...get().jointState,
       q: replaceVectorValue(get().jointState.q, index, value),
     }
     if (jointState.q === get().jointState.q) return
+    set({
+      jointState,
+      calculation: calculateLabState(get().parameters, jointState),
+    })
+  },
+
+  setJointVector: (q) => {
+    if (!q.every(Number.isFinite) || vectorsEqual(get().jointState.q, q)) return
+    const jointState = { ...get().jointState, q: [...q] as [number, number, number] }
     set({
       jointState,
       calculation: calculateLabState(get().parameters, jointState),
