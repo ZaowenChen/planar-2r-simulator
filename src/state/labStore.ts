@@ -287,7 +287,12 @@ export const useLabStore = create<LabStore>((set, get) => ({
   },
 
   setJointVector: (q) => {
-    if (!q.every(Number.isFinite) || vectorsEqual(get().jointState.q, q)) return
+    if (
+      !Array.isArray(q)
+      || q.length !== 3
+      || !q.every(Number.isFinite)
+      || vectorsEqual(get().jointState.q, q)
+    ) return
     const jointState = { ...get().jointState, q: [...q] as [number, number, number] }
     set({
       jointState,

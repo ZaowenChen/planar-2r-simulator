@@ -13,12 +13,15 @@ test('completes a kinematics and inverse-dynamics learning flow', async ({ page 
   await expect(page.getByTestId('simulation-time')).not.toHaveText('0.000 s')
 })
 
-test('captures the 1440 by 1000 desktop release preview', async ({ page }) => {
+test('captures the 1440 by 1000 desktop preview artifact', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '空间 3R 机器人学交互实验室' })).toBeVisible()
   await expect(page.locator('.robot-scene__frame-label', { hasText: '{e}' })).toBeVisible()
-  await page.screenshot({ path: 'docs/robotics-lab-preview.png', fullPage: true })
+  await page.screenshot({
+    path: testInfo.outputPath('robotics-lab-preview.png'),
+    fullPage: true,
+  })
 })
 
 test('keeps every desktop learning module within its three-column workbench', async ({ page }) => {

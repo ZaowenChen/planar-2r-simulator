@@ -35,6 +35,22 @@ describe('shared laboratory store', () => {
     }])
   })
 
+  it('ignores a malformed runtime joint vector without publishing or recalculating', () => {
+    const before = useLabStore.getState()
+    let publications = 0
+    const unsubscribe = useLabStore.subscribe(() => {
+      publications += 1
+    })
+
+    ;(before.setJointVector as (q: unknown) => void)([0.1, 0.2])
+    unsubscribe()
+
+    const after = useLabStore.getState()
+    expect(after.jointState.q).toEqual(before.jointState.q)
+    expect(after.calculation.revision).toBe(before.calculation.revision)
+    expect(publications).toBe(0)
+  })
+
   it('does not publish or recalculate an unchanged joint value', () => {
     const before = useLabStore.getState()
     let publications = 0
