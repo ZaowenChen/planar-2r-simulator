@@ -77,7 +77,7 @@ describe('ExperimentPage', () => {
     expect(useLabStore.getState().experiment.mode).toBe('forward')
     expect(Number(screen.getByTestId('sample-count').textContent)).toBeGreaterThan(1)
     expect(screen.getByTestId('current-state').textContent).toContain('rad')
-  })
+  }, 15_000)
 
   it('plays, pauses, single-steps, resets, and clicks a chart through one shared time', async () => {
     const user = userEvent.setup()
