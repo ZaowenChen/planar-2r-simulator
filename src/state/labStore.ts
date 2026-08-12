@@ -134,6 +134,43 @@ function setNumericPath(
   return candidate
 }
 
+function deriveParameterCandidate(
+  validatedParameters: RobotParameters,
+  rawParameters: Record<string, string>,
+): {
+  candidate: RobotParameters
+  parameterIssues: ValidationIssue[]
+  fieldIssues: Record<string, string>
+} {
+  let candidate = clone(validatedParameters)
+  const parseIssues: Record<string, string> = {}
+
+  for (const [path, rawValue] of Object.entries(rawParameters)) {
+    const numericValue = Number(rawValue)
+    if (rawValue.trim() === '' || !Number.isFinite(numericValue)) {
+      parseIssues[path] = '请输入有限数值。'
+      continue
+    }
+
+    const updatedCandidate = setNumericPath(candidate, path, numericValue)
+    if (updatedCandidate === undefined) {
+      parseIssues[path] = '未识别的参数字段。'
+      continue
+    }
+    candidate = updatedCandidate
+  }
+
+  const parameterIssues = validateRobotParameters(candidate)
+  const validationIssues = Object.fromEntries(
+    parameterIssues.map((issue) => [issue.path, issue.message]),
+  )
+  return {
+    candidate,
+    parameterIssues,
+    fieldIssues: { ...validationIssues, ...parseIssues },
+  }
+}
+
 function replaceVectorValue(vector: Vector3, index: number, value: number): Vector3 {
   if (!Number.isInteger(index) || index < 0 || index > 2) {
     return vector
@@ -173,40 +210,20 @@ export const useLabStore = create<LabStore>((set, get) => ({
 
   setParameterField: (path, rawValue) => {
     const rawParameters = { ...get().rawParameters, [path]: rawValue }
-    const numericValue = Number(rawValue)
-    if (rawValue.trim() === '' || !Number.isFinite(numericValue)) {
-      set({
-        rawParameters,
-        fieldIssues: { ...get().fieldIssues, [path]: '请输入有限数值。' },
-      })
-      return
-    }
-
-    const candidate = setNumericPath(get().parameters, path, numericValue)
-    if (candidate === undefined) {
-      set({
-        rawParameters,
-        fieldIssues: { ...get().fieldIssues, [path]: '未识别的参数字段。' },
-      })
-      return
-    }
-
-    const parameterIssues = validateRobotParameters(candidate)
-    if (parameterIssues.length > 0) {
-      const fieldIssues = Object.fromEntries(
-        parameterIssues.map((issue) => [issue.path, issue.message]),
-      )
+    const { candidate, parameterIssues, fieldIssues } = deriveParameterCandidate(
+      get().parameters,
+      rawParameters,
+    )
+    if (Object.keys(fieldIssues).length > 0) {
       set({ rawParameters, parameterIssues, fieldIssues })
       return
     }
 
-    const fieldIssues = { ...get().fieldIssues }
-    delete fieldIssues[path]
     set({
       rawParameters,
       parameters: candidate,
       parameterIssues: [],
-      fieldIssues,
+      fieldIssues: {},
       calculation: calculateLabState(candidate, get().jointState),
     })
   },

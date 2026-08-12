@@ -103,7 +103,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
 .status-banner--warning { border-left-color: var(--amber); background: var(--amber-soft); }
 .status-banner--error { border-left-color: var(--error); background: #f3ddd8; }
 
-@media (max-width: 1023px) {
+@media (max-width: 1100px) {
   .lab-shell { padding-inline: 20px; }
   .lab-navigation { overflow-x: auto; grid-template-columns: repeat(4, minmax(170px, 1fr)); }
   .workbench { grid-template-columns: 1fr; }

@@ -41,6 +41,57 @@ describe('shared laboratory store', () => {
     expect(valid.calculation.revision).toBe(revision + 1)
   })
 
+  it('retains every raw-field issue and promotes nothing until all edits are valid', () => {
+    const initial = useLabStore.getState()
+    const revision = initial.calculation.revision
+
+    initial.setParameterField('geometry.l2', 'not-a-number')
+    useLabStore.getState().setParameterField('links.1.mass', '-3')
+
+    const multiplyInvalid = useLabStore.getState()
+    expect(multiplyInvalid.fieldIssues['geometry.l2']).toMatch(/有限数值/)
+    expect(multiplyInvalid.fieldIssues['links.1.mass']).toBeDefined()
+    expect(multiplyInvalid.parameters.geometry.l2).toBe(2)
+    expect(multiplyInvalid.parameters.links[1].mass).toBe(3)
+    expect(multiplyInvalid.calculation.revision).toBe(revision)
+
+    multiplyInvalid.setParameterField('links.1.mass', '5')
+
+    const stillInvalid = useLabStore.getState()
+    expect(stillInvalid.fieldIssues['geometry.l2']).toMatch(/有限数值/)
+    expect(stillInvalid.fieldIssues['links.1.mass']).toBeUndefined()
+    expect(stillInvalid.parameters.links[1].mass).toBe(3)
+    expect(stillInvalid.calculation.revision).toBe(revision)
+
+    stillInvalid.setParameterField('geometry.l2', '2.25')
+
+    const promoted = useLabStore.getState()
+    expect(promoted.fieldIssues).toEqual({})
+    expect(promoted.parameters.geometry.l2).toBe(2.25)
+    expect(promoted.parameters.links[1].mass).toBe(5)
+    expect(promoted.calculation.revision).toBe(revision + 1)
+  })
+
+  it('atomically promotes coupled raw edits that are valid only together', () => {
+    const initial = useLabStore.getState()
+    const revision = initial.calculation.revision
+
+    initial.setParameterField('geometry.l2', '0.5')
+
+    const invalidLength = useLabStore.getState()
+    expect(invalidLength.fieldIssues['links.1.centerOfMass']).toBeDefined()
+    expect(invalidLength.parameters.geometry.l2).toBe(2)
+    expect(invalidLength.calculation.revision).toBe(revision)
+
+    invalidLength.setParameterField('links.1.centerOfMass.0', '-0.4')
+
+    const promoted = useLabStore.getState()
+    expect(promoted.fieldIssues).toEqual({})
+    expect(promoted.parameters.geometry.l2).toBe(0.5)
+    expect(promoted.parameters.links[1].centerOfMass[0]).toBe(-0.4)
+    expect(promoted.calculation.revision).toBe(revision + 1)
+  })
+
   it('owns navigation, experiment settings, and the shared simulation clock', () => {
     const store = useLabStore.getState()
 
