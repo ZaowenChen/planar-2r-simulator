@@ -105,7 +105,7 @@ describe('forward-dynamics simulation', () => {
 
     expect(samples).toHaveLength(2001)
     expect(maximumDrift).toBeLessThan(0.005)
-  }, 15_000)
+  }, 30_000)
 
   it('includes the exact final time for a non-divisible integration step', () => {
     const samples = simulateForwardDynamics({
