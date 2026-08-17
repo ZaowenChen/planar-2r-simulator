@@ -92,6 +92,22 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
 .robot-scene { min-height: 470px; }
 
 .analysis-stack { display: grid; min-width: 0; gap: 18px; overflow: hidden; }
+.kinematics-walkthrough { min-width: 0; border-top: 3px solid var(--teal); background: #fffdf8; box-shadow: 0 8px 24px rgb(23 40 60 / 6%); }
+.walkthrough-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 16px; border-bottom: 1px solid var(--rule); }
+.walkthrough-header h3 { margin: 0; font-family: var(--serif); font-size: 1.15rem; }
+.walkthrough-header > span { flex: 0 0 auto; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.walkthrough-body { display: grid; min-width: 0; gap: 12px; padding: 16px; }
+.walkthrough-section { min-width: 0; padding: 12px; border: 1px solid var(--rule); background: #fff; }
+.walkthrough-section h4 { margin: 0 0 10px; color: var(--teal); font-size: .82rem; letter-spacing: .06em; }
+.walkthrough-section p { margin: 10px 0 0; color: var(--muted); font-size: .85rem; line-height: 1.65; }
+.walkthrough-section .katex-display, .walkthrough-equation-scroll { overflow-x: auto; overflow-y: hidden; }
+.walkthrough-matrix-grid, .walkthrough-column-list { display: grid; gap: 12px; }
+.walkthrough-column-list > div, .walkthrough-solution { min-width: 0; padding: 10px; background: var(--teal-soft); }
+.walkthrough-column-list strong, .walkthrough-solution strong { font-family: var(--serif); }
+.walkthrough-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
+.walkthrough-actions button { border: 1px solid var(--ink); color: var(--ink); background: transparent; cursor: pointer; }
+.walkthrough-actions button:last-child { color: #fff; background: var(--ink); }
+.walkthrough-actions button:disabled { opacity: .4; cursor: not-allowed; }
 .formula-card { border-top: 3px solid var(--teal); background: #fffdf8; box-shadow: 0 8px 24px rgb(23 40 60 / 6%); }
 .formula-card__header { padding: 16px 16px 0; }
 .formula-card__header h3 { font-size: 1.1rem; }

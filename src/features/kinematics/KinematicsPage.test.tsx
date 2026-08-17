@@ -23,23 +23,22 @@ beforeEach(() => useLabStore.getState().resetLab())
 afterEach(cleanup)
 
 describe('KinematicsPage', () => {
-  it('updates the endpoint, transform, Jacobian, and scene revision from θ₂', async () => {
+  it('updates the calculation and resets the walkthrough when θ₂ changes', async () => {
     const user = userEvent.setup()
     render(<KinematicsPage />)
-    const endpoint = screen.getByTestId('endpoint-result')
-    const before = endpoint.getAttribute('data-revision')
+    const walkthrough = screen.getByTestId('kinematics-walkthrough')
+    const before = walkthrough.getAttribute('data-revision')
+
+    await user.click(screen.getByRole('button', { name: '下一步' }))
+    expect(screen.getByTestId('walkthrough-step')).toHaveTextContent('第 2 / 9 步')
 
     await user.clear(screen.getByLabelText('关节角 θ₂'))
     await user.type(screen.getByLabelText('关节角 θ₂'), '30{Enter}')
 
     expect(useLabStore.getState().calculation.revision).toBe(Number(before) + 1)
-    await user.tab()
-
-    expect(endpoint).toHaveTextContent('m')
-    const after = endpoint.getAttribute('data-revision')
+    expect(screen.getByTestId('walkthrough-step')).toHaveTextContent('第 1 / 9 步')
+    const after = walkthrough.getAttribute('data-revision')
     expect(after).toBe(String(Number(before) + 1))
-    expect(screen.getByTestId('transform-result')).toHaveAttribute('data-revision', after)
-    expect(screen.getByTestId('jacobian-result')).toHaveAttribute('data-revision', after)
     expect(screen.getByTestId('scene-result')).toHaveAttribute('data-revision', after)
   })
 
@@ -119,6 +118,10 @@ describe('KinematicsPage', () => {
       await user.type(input, '0{Enter}')
     }
 
+    for (let step = 0; step < 6; step += 1) {
+      await user.click(screen.getByRole('button', { name: '下一步' }))
+    }
+
     expect(screen.getByText('接近奇异位形')).toBeInTheDocument()
     expect(screen.getByText(/最小奇异值/)).toBeInTheDocument()
     expect(screen.getByText(/条件数/)).toBeInTheDocument()
@@ -127,15 +130,23 @@ describe('KinematicsPage', () => {
     }
   })
 
-  it('renders dynamic substitutions as KaTeX academic symbols', async () => {
+  it('shows one calculation step at a time and reaches the two inverse solutions in order', async () => {
     const user = userEvent.setup()
     render(<KinematicsPage />)
-    const endpoint = screen.getByTestId('endpoint-result')
 
-    await user.click(within(endpoint).getByRole('tab', { name: '代入' }))
+    expect(screen.getByRole('heading', { name: '角度输入与弧度转换' })).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: '标准 D–H 参数表' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '下一步' }))
+    expect(screen.getByRole('table', { name: '标准 D–H 参数表' })).toBeInTheDocument()
 
-    const panel = endpoint.querySelector('.formula-card__panel')
-    expect(panel?.querySelector('.katex-error')).toBeNull()
-    expect(panel?.querySelector('.katex')?.textContent).toContain('q')
+    for (let step = 1; step < 8; step += 1) {
+      await user.click(screen.getByRole('button', { name: '下一步' }))
+    }
+
+    expect(screen.getByRole('heading', { name: '比较肘下解与肘上解' })).toBeInTheDocument()
+    expect(screen.getByText('肘下解（+）')).toBeInTheDocument()
+    expect(screen.getByText('肘上解（−）')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '下一步' })).toBeDisabled()
+    expect(document.querySelector('.katex-error')).toBeNull()
   })
 })

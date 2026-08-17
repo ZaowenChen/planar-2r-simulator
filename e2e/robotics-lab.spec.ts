@@ -5,6 +5,9 @@ test('completes a kinematics and inverse-dynamics learning flow', async ({ page 
   await expect(page.getByRole('heading', { name: '空间 3R 机器人学交互实验室' })).toBeVisible()
   await page.getByRole('button', { name: '运动学' }).click()
   await page.getByLabel('关节角 θ₂').fill('35')
+  for (let step = 0; step < 5; step += 1) {
+    await page.getByRole('button', { name: '下一步' }).click()
+  }
   await expect(page.getByTestId('endpoint-result')).toContainText('m')
   await page.getByRole('button', { name: '动态实验' }).click()
   await page.getByRole('tab', { name: '逆动力学' }).click()

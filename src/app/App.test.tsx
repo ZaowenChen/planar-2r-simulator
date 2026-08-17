@@ -60,6 +60,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '运动学' }))
 
     expect(screen.getByLabelText('关节角 θ₂')).toBeInTheDocument()
-    expect(screen.getByTestId('jacobian-result')).toBeInTheDocument()
+    expect(screen.getByTestId('kinematics-walkthrough')).toBeInTheDocument()
+    expect(screen.getByTestId('walkthrough-step')).toHaveTextContent('第 1 / 9 步')
   })
 })
