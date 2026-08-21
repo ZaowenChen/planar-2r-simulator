@@ -4,7 +4,7 @@ import type { ExperimentMode } from '../../state/labStore'
 export interface ExperimentDraft {
   duration: string
   stepSize: string
-  inverseType: 'quintic' | 'sinusoidal'
+  inverseType: 'quintic' | 'trapezoidal' | 'sinusoidal'
   forwardType: 'constant' | 'step' | 'sine' | 'piecewise-constant'
   primary: readonly [string, string, string]
   secondary: readonly [string, string, string]
@@ -115,11 +115,12 @@ export function SimulationControls({
               value={draft.inverseType}
             >
               <option value="quintic">五次多项式</option>
+              <option value="trapezoidal">梯形速度（抛物线过渡）</option>
               <option value="sinusoidal">正弦轨迹</option>
             </select>
           </label>
-          <VectorEditor draft={draft} field="primary" label={draft.inverseType === 'quintic' ? '初始角 θ' : '中心角 θ'} onChange={onDraftChange} unit="rad" />
-          <VectorEditor draft={draft} field="secondary" label={draft.inverseType === 'quintic' ? '目标角 θ' : '振幅 A'} onChange={onDraftChange} unit="rad" />
+          <VectorEditor draft={draft} field="primary" label={draft.inverseType === 'sinusoidal' ? '中心角 θ' : '初始角 θ'} onChange={onDraftChange} unit="rad" />
+          <VectorEditor draft={draft} field="secondary" label={draft.inverseType === 'sinusoidal' ? '振幅 A' : '目标角 θ'} onChange={onDraftChange} unit="rad" />
           {draft.inverseType === 'sinusoidal' && <>
             <VectorEditor draft={draft} field="frequency" label="频率 f" onChange={onDraftChange} unit="Hz" />
             <VectorEditor draft={draft} field="phase" label="相位 φ" onChange={onDraftChange} unit="rad" />

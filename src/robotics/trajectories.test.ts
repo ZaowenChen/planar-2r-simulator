@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  evaluateTrajectory,
   evaluateTorqueProfile,
   quinticTrajectory,
   sinusoidalTrajectory,
+  trapezoidalTrajectory,
 } from './trajectories'
 
 describe('joint trajectories', () => {
@@ -54,6 +56,40 @@ describe('joint trajectories', () => {
     expect(sample.qdd[0]).toBeCloseTo(0, 12)
     expect(sample.qdd[1]).toBeCloseTo(-2 * Math.PI ** 2, 12)
     expect(sample.qdd[2]).toBeCloseTo(0, 12)
+  })
+
+  it('generates a synchronized trapezoidal velocity profile with parabolic blends', () => {
+    const config = {
+      q0: [0, 0.2, -0.3],
+      qf: [1, -0.4, 0.5],
+      duration: 3,
+    } as const
+
+    const start = trapezoidalTrajectory(config, 0)
+    const cruise = trapezoidalTrajectory(config, 1.5)
+    const finish = trapezoidalTrajectory(config, 3)
+
+    expect(start.q).toEqual(config.q0)
+    expect(start.qd).toEqual([0, 0, 0])
+    expect(start.qdd[0]).toBeCloseTo(0.5, 12)
+    expect(cruise.q).toEqual([0.5, -0.10000000000000003, 0.10000000000000003])
+    expect(cruise.qd[0]).toBeCloseTo(0.5, 12)
+    expect(cruise.qdd).toEqual([0, -0, 0])
+    expect(finish.q).toEqual(config.qf)
+    expect(finish.qd).toEqual([0, 0, 0])
+    expect(finish.qdd[0]).toBeCloseTo(-0.5, 12)
+  })
+
+  it('dispatches and clamps trapezoidal trajectory evaluation', () => {
+    const config = {
+      type: 'trapezoidal',
+      q0: [0, 0, 0],
+      qf: [1, 0, -1],
+      duration: 2,
+    } as const
+
+    expect(evaluateTrajectory(config, -1)).toEqual(trapezoidalTrajectory(config, 0))
+    expect(evaluateTrajectory(config, 3)).toEqual(trapezoidalTrajectory(config, 2))
   })
 })
 

@@ -13,6 +13,13 @@ export interface QuinticTrajectoryConfig {
   duration: number
 }
 
+export interface TrapezoidalTrajectoryConfig {
+  type?: 'trapezoidal'
+  q0: Vector3
+  qf: Vector3
+  duration: number
+}
+
 export interface SinusoidalTrajectoryConfig {
   type?: 'sinusoidal'
   center: Vector3
@@ -24,6 +31,7 @@ export interface SinusoidalTrajectoryConfig {
 
 export type TrajectoryConfig =
   | (QuinticTrajectoryConfig & { type: 'quintic' })
+  | (TrapezoidalTrajectoryConfig & { type: 'trapezoidal' })
   | (SinusoidalTrajectoryConfig & { type: 'sinusoidal' })
 
 interface TimedProfile {
@@ -119,6 +127,62 @@ export function quinticTrajectory(
   }
 }
 
+/**
+ * Joint-space trapezoidal velocity profile with parabolic blends.
+ *
+ * The automatically selected cruise velocity is 1.5 times the average
+ * velocity, which gives equal one-third-duration acceleration, cruise, and
+ * deceleration phases. Each joint shares the same normalized blend so the
+ * complete configuration reaches both endpoints synchronously.
+ */
+export function trapezoidalTrajectory(
+  config: TrapezoidalTrajectoryConfig,
+  time: number,
+): TrajectorySample {
+  const t = clampedTime(time, config.duration)
+  const u = t / config.duration
+  const blendDuration = 1 / 3
+  const normalizedCruiseVelocity = 1.5
+  const normalizedAcceleration = normalizedCruiseVelocity / blendDuration
+
+  let blend: number
+  let blendVelocity: number
+  let blendAcceleration: number
+  if (u <= blendDuration) {
+    blend = 0.5 * normalizedAcceleration * u ** 2
+    blendVelocity = normalizedAcceleration * u
+    blendAcceleration = normalizedAcceleration
+  } else if (u <= 1 - blendDuration) {
+    blend = normalizedCruiseVelocity * u - 0.25
+    blendVelocity = normalizedCruiseVelocity
+    blendAcceleration = 0
+  } else {
+    const remaining = 1 - u
+    blend = 1 - 0.5 * normalizedAcceleration * remaining ** 2
+    blendVelocity = normalizedAcceleration * remaining
+    blendAcceleration = -normalizedAcceleration
+  }
+
+  const displacement = mapVector(config.q0, (value, index) => (
+    config.qf[index] - value
+  ))
+  return {
+    q: t === 0
+      ? config.q0
+      : t === config.duration
+        ? config.qf
+        : mapVector(config.q0, (value, index) => value + displacement[index] * blend),
+    qd: t === 0 || t === config.duration
+      ? [0, 0, 0]
+      : mapVector(displacement, (value) => (
+        value * blendVelocity / config.duration
+      )),
+    qdd: mapVector(displacement, (value) => (
+      value * blendAcceleration / config.duration ** 2
+    )),
+  }
+}
+
 export function sinusoidalTrajectory(
   config: SinusoidalTrajectoryConfig,
   time: number,
@@ -148,9 +212,14 @@ export function evaluateTrajectory(
   config: TrajectoryConfig,
   time: number,
 ): TrajectorySample {
-  return config.type === 'quintic'
-    ? quinticTrajectory(config, time)
-    : sinusoidalTrajectory(config, time)
+  switch (config.type) {
+    case 'quintic':
+      return quinticTrajectory(config, time)
+    case 'trapezoidal':
+      return trapezoidalTrajectory(config, time)
+    case 'sinusoidal':
+      return sinusoidalTrajectory(config, time)
+  }
 }
 
 export function evaluateTorqueProfile(

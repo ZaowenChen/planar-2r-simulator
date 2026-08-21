@@ -79,6 +79,21 @@ describe('ExperimentPage', () => {
     expect(screen.getByTestId('current-state').textContent).toContain('rad')
   }, 15_000)
 
+  it('generates a trapezoidal joint trajectory from the inverse-dynamics editor', async () => {
+    const user = userEvent.setup()
+    render(<ExperimentPage />)
+
+    await user.selectOptions(screen.getByLabelText('关节轨迹类型'), 'trapezoidal')
+    expect(screen.getByLabelText('初始角 θ₁')).toBeInTheDocument()
+    expect(screen.getByLabelText('目标角 θ₁')).toBeInTheDocument()
+    expect(screen.queryByLabelText('频率 f₁')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '生成实验' }))
+
+    expect(Number(screen.getByTestId('sample-count').textContent)).toBeGreaterThan(1)
+    expect(screen.getByTestId('current-torque').textContent).toMatch(/N·m/)
+  }, 15_000)
+
   it('plays, pauses, single-steps, resets, and clicks a chart through one shared time', async () => {
     const user = userEvent.setup()
     render(<ExperimentPage />)

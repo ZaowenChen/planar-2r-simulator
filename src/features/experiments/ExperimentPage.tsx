@@ -65,9 +65,9 @@ function configFromDraft(
   if (primary === undefined || secondary === undefined || frequency === undefined || phase === undefined) return '所有向量输入必须是有限数值。'
 
   if (mode === 'inverse') {
-    const trajectory: TrajectoryConfig = draft.inverseType === 'quintic'
-      ? { type: 'quintic', q0: primary, qf: secondary, duration }
-      : { type: 'sinusoidal', center: primary, amplitude: secondary, frequency, phase, duration }
+    const trajectory: TrajectoryConfig = draft.inverseType === 'sinusoidal'
+      ? { type: 'sinusoidal', center: primary, amplitude: secondary, frequency, phase, duration }
+      : { type: draft.inverseType, q0: primary, qf: secondary, duration }
     return { duration, stepSize, trajectory }
   }
 
