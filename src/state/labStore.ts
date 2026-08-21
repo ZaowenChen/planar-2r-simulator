@@ -17,7 +17,6 @@ import { validateRobotParameters } from '../robotics/validation'
 
 export type LabModule = 'model' | 'kinematics' | 'dynamics' | 'experiments'
 export type ExperimentMode = 'inverse' | 'forward'
-export type AngleUnit = 'degrees' | 'radians'
 
 export interface LabCalculation {
   revision: number
@@ -43,7 +42,6 @@ export interface LabStore {
   fieldIssues: Record<string, string>
   jointState: JointState
   desiredPosition: Vector3
-  angleUnit: AngleUnit
   activeModule: LabModule
   experiment: ExperimentSettings
   simulationTime: number
@@ -56,7 +54,7 @@ export interface LabStore {
   setJointVelocity: (index: number, value: number) => void
   setJointAcceleration: (index: number, value: number) => void
   setDesiredPosition: (index: number, value: number) => void
-  setAngleUnit: (unit: AngleUnit) => void
+  setDesiredPositionVector: (position: Vector3) => void
   setActiveModule: (module: LabModule) => void
   setExperimentMode: (mode: ExperimentMode) => void
   setExperimentDuration: (duration: number) => void
@@ -197,7 +195,6 @@ function initialState() {
     fieldIssues: {} as Record<string, string>,
     jointState,
     desiredPosition: forward.endEffectorPosition,
-    angleUnit: 'degrees' as AngleUnit,
     activeModule: 'model' as LabModule,
     experiment: {
       mode: 'inverse' as ExperimentMode,
@@ -330,7 +327,15 @@ export const useLabStore = create<LabStore>((set, get) => ({
     if (!Number.isFinite(value)) return
     set({ desiredPosition: replaceVectorValue(get().desiredPosition, index, value) })
   },
-  setAngleUnit: (angleUnit) => set({ angleUnit }),
+  setDesiredPositionVector: (position) => {
+    if (
+      !Array.isArray(position)
+      || position.length !== 3
+      || !position.every(Number.isFinite)
+      || vectorsEqual(get().desiredPosition, position)
+    ) return
+    set({ desiredPosition: [...position] as [number, number, number] })
+  },
   setActiveModule: (activeModule) => set({ activeModule }),
   setExperimentMode: (mode) => set({ experiment: { ...get().experiment, mode } }),
   setExperimentDuration: (duration) => {

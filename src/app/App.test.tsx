@@ -17,6 +17,8 @@ describe('App', () => {
   it('names the laboratory and exposes its four learning modules', () => {
     render(<App />)
     expect(screen.getByText('空间 3R 机器人学交互实验室')).toBeInTheDocument()
+    expect(screen.getByText(/运动学显示 mm \/ °/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('内部角度使用弧度')
     for (const label of ['机器人模型', '运动学', '动力学', '动态实验']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
@@ -59,8 +61,15 @@ describe('App', () => {
     expect(screen.getByRole('table', { name: '标准 D–H 参数表' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '运动学' }))
 
+    expect(screen.getByText('D–H 正解 · 几何逆解 · 微分运动学')).toBeInTheDocument()
+    expect(screen.getByText(/由关节角计算末端位姿/)).toBeInTheDocument()
+    expect(screen.getByText(/θ₂ 25\.0°/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('关节角 θ₂')).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /^正运动学/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /^位置逆运动学/ })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '修改关节角' }))
     expect(screen.getByLabelText('关节角 θ₂')).toBeInTheDocument()
     expect(screen.getByTestId('kinematics-walkthrough')).toBeInTheDocument()
-    expect(screen.getByTestId('walkthrough-step')).toHaveTextContent('第 1 / 9 步')
+    expect(screen.getByTestId('walkthrough-step')).toHaveTextContent('第 1 / 6 步')
   })
 })

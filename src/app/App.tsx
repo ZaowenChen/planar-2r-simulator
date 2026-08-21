@@ -14,9 +14,9 @@ const MODULE_COPY: Record<LabModule, { kicker: string; title: string; summary: s
     summary: '检查标准 D–H 约定、连杆几何与教学参数。',
   },
   kinematics: {
-    kicker: '正解 · 逆解 · 雅可比',
+    kicker: 'D–H 正解 · 几何逆解 · 微分运动学',
     title: '运动学',
-    summary: '从同一关节姿态观察末端位置、速度映射与奇异性。',
+    summary: '由关节角计算末端位姿，由目标位置求解析逆解，并通过雅可比描述关节速度与末端速度之间的关系。',
   },
   dynamics: {
     kicker: '惯性 · 科氏项 · 重力',
@@ -46,7 +46,7 @@ export function App() {
         </div>
         <p className="lab-masthead__note">
           偏航–俯仰–俯仰教学模型<br />
-          SI 制 · 内部角度使用弧度
+          核心计算保持 SI 制 · 运动学显示 mm / °
         </p>
       </header>
 

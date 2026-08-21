@@ -29,8 +29,15 @@ describe('RobotModelPage', () => {
     expect(screen.getByRole('heading', { name: '几何与环境参数' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '坐标系定义' })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: '标准 D–H 参数表' })).toBeInTheDocument()
-    expect(screen.getByLabelText('基座高度 d₁')).toHaveAccessibleDescription('m')
-    expect(screen.getByLabelText('第二连杆长度 l₂')).toHaveAccessibleDescription('m')
+    expect(screen.getByLabelText('基座高度 d₁')).toHaveAccessibleDescription('mm')
+    expect(screen.getByLabelText('基座高度 d₁')).toHaveValue('800')
+    expect(screen.getByLabelText('第二连杆长度 l₂')).toHaveAccessibleDescription('mm')
+    expect(screen.getByLabelText('第二连杆长度 l₂')).toHaveValue('2000')
+
+    const dhTable = screen.getByRole('table', { name: '标准 D–H 参数表' })
+    expect(dhTable).toHaveTextContent('(mm)')
+    expect(dhTable).toHaveTextContent('(°)')
+    expect(dhTable).toHaveTextContent('800.000')
 
     const katexText = Array.from(document.querySelectorAll('.katex'))
       .map((node) => node.textContent)
@@ -59,10 +66,11 @@ describe('RobotModelPage', () => {
     expect(useLabStore.getState().calculation.revision).toBe(before)
 
     await user.clear(input)
-    await user.type(input, '2.4{Enter}')
+    await user.type(input, '2400{Enter}')
 
     expect(screen.queryByText('连杆长度必须为正数。')).not.toBeInTheDocument()
     expect(useLabStore.getState().parameters.geometry.l2).toBe(2.4)
+    expect(input).toHaveValue('2400')
     expect(useLabStore.getState().calculation.revision).not.toBe(before)
   })
 
@@ -77,7 +85,7 @@ describe('RobotModelPage', () => {
 
     act(() => useLabStore.getState().setParameterField('geometry.l2', '2.6'))
 
-    expect(input).toHaveValue('2.6')
+    expect(input).toHaveValue('2600')
     expect(screen.queryByText('连杆长度必须为正数。')).not.toBeInTheDocument()
   })
 })

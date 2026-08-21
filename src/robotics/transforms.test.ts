@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  decomposeDhTransform,
   dhTransform,
   multiply4,
   rotationOf,
@@ -24,6 +25,20 @@ function expectVectorClose(actual: Vector3, expected: Vector3, tolerance: number
 }
 
 describe('homogeneous transforms', () => {
+  it('decomposes and recomposes the four standard D–H operations', () => {
+    const decomposition = decomposeDhTransform(0.4, 2, Math.PI / 2, 0.8)
+
+    expect(decomposition.operations.map((operation) => operation.kind)).toEqual([
+      'rz', 'tz', 'tx', 'rx',
+    ])
+    expectMatrixClose(
+      decomposition.result,
+      dhTransform(0.4, 2, Math.PI / 2, 0.8),
+      1e-12,
+    )
+    expect(decomposition.operations[3].cumulative).toEqual(decomposition.result)
+  })
+
   it('reproduces the general nonzero D–H reference transform', () => {
     expectMatrixClose(dhTransform(Math.PI / 2, 2, Math.PI / 2, 3), [
       [0, 0, 1, 0],

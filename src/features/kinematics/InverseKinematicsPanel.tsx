@@ -3,29 +3,52 @@ import { NumericField } from '../../components/NumericField'
 import { inverseKinematics } from '../../robotics/kinematics'
 import type { InverseKinematicsSolution } from '../../robotics/kinematics'
 import { useLabStore } from '../../state/labStore'
+import {
+  metresToMillimetres,
+  millimetresToMetres,
+  radiansToDegrees,
+} from './presentation'
+import {
+  configurationId,
+  type KinematicsConfigurationId,
+} from './teachingState'
 
 function branchLabel(solution: InverseKinematicsSolution): string {
-  return solution.branch === 'elbow-down' ? '肘下解' : '肘上解'
+  return solution.branch === 'elbow-down' ? '肘下构型' : '肘上构型'
 }
 
-export function InverseKinematicsPanel() {
+function radialFamilyLabel(solution: InverseKinematicsSolution): string {
+  return solution.radialFamily === 'conventional' ? '常规径向' : '折叠径向'
+}
+
+export interface InverseKinematicsPanelProps {
+  activeConfigurationId: KinematicsConfigurationId
+  onConfigurationChange: (configuration: KinematicsConfigurationId) => void
+}
+
+export function InverseKinematicsPanel({
+  activeConfigurationId,
+  onConfigurationChange,
+}: InverseKinematicsPanelProps) {
   const desiredPosition = useLabStore((state) => state.desiredPosition)
   const parameters = useLabStore((state) => state.parameters)
   const q = useLabStore((state) => state.jointState.q)
-  const angleUnit = useLabStore((state) => state.angleUnit)
   const setDesiredPosition = useLabStore((state) => state.setDesiredPosition)
   const setJointVector = useLabStore((state) => state.setJointVector)
-  const [drafts, setDrafts] = useState(() => desiredPosition.map(String))
+  const displayPosition = (value: number) => Number(
+    metresToMillimetres(value).toFixed(3),
+  ).toString()
+  const [drafts, setDrafts] = useState(() => desiredPosition.map(displayPosition))
   const [issues, setIssues] = useState<Record<number, string>>({})
   const result = useMemo(
     () => inverseKinematics(desiredPosition, parameters, q),
     [desiredPosition, parameters, q],
   )
-  const [selectedBranch, setSelectedBranch] = useState<InverseKinematicsSolution['branch']>('elbow-down')
-  const selectedSolution = result.solutions.find((solution) => solution.branch === selectedBranch)
-    ?? result.solutions[0]
+  const selectedSolution = result.solutions.find((solution) => (
+    configurationId(solution) === activeConfigurationId
+  ))
 
-  useEffect(() => setDrafts(desiredPosition.map(String)), [desiredPosition])
+  useEffect(() => setDrafts(desiredPosition.map(displayPosition)), [desiredPosition])
 
   const commitTarget = (index: number, raw: string) => {
     const value = Number(raw)
@@ -38,13 +61,11 @@ export function InverseKinematicsPanel() {
       delete next[index]
       return next
     })
-    setDesiredPosition(index, value)
+    setDesiredPosition(index, millimetresToMetres(value))
   }
 
   const formatSolution = (solution: InverseKinematicsSolution) => solution.q
-    .map((value) => angleUnit === 'degrees'
-      ? `${(value * 180 / Math.PI).toFixed(1)}°`
-      : `${value.toFixed(3)} rad`)
+    .map((value) => `${radiansToDegrees(value).toFixed(1)}°`)
     .join('，')
 
   return (
@@ -58,7 +79,7 @@ export function InverseKinematicsPanel() {
             label={`期望位置 ${['x', 'y', 'z'][index]}`}
             onChange={(raw) => setDrafts((current) => current.map((value, draftIndex) => draftIndex === index ? raw : value))}
             onCommit={(raw) => commitTarget(index, raw)}
-            unit="m"
+            unit="mm"
             value={drafts[index]}
           />
         ))}
@@ -67,34 +88,37 @@ export function InverseKinematicsPanel() {
       {(result.status === 'unreachable' || result.status === 'joint-limit') && (
         <div className="inline-alert" role="alert">
           {result.status === 'unreachable'
-            ? '目标位置超出可达工作空间，当前关节姿态保持不变。'
-            : '目标几何可达，但所有逆解均超出关节限位，当前关节姿态保持不变。'}
+            ? '目标位置超出可达工作空间，当前关节构型保持不变。'
+            : '目标几何可达，但所有逆解均超出关节限位，当前关节构型保持不变。'}
         </div>
       )}
       {result.status === 'axis-singular' && <div className="inline-alert" role="alert">目标位于基座轴线上，基座角采用零值约定。</div>}
 
       {result.solutions.length > 0 && (
         <fieldset className="ik-branches">
-          <legend>逆运动学分支</legend>
+          <legend>逆运动学构型</legend>
           {result.solutions.map((solution) => (
-            <label key={solution.branch}>
+            <label key={configurationId(solution)}>
               <input
-                checked={(selectedSolution?.branch ?? selectedBranch) === solution.branch}
+                checked={activeConfigurationId === configurationId(solution)}
                 name="ik-branch"
-                onChange={() => setSelectedBranch(solution.branch)}
+                onChange={() => onConfigurationChange(configurationId(solution))}
                 type="radio"
               />
-              <span>{branchLabel(solution)}：{formatSolution(solution)}</span>
+              <span>{branchLabel(solution)} · {radialFamilyLabel(solution)}：{formatSolution(solution)}</span>
             </label>
           ))}
         </fieldset>
+      )}
+      {result.solutions.length > 0 && selectedSolution === undefined && (
+        <p className="control-sheet__note">当前三维图正在展示教学构型；该构型不在当前可应用的关节限位解中。</p>
       )}
       <button
         disabled={selectedSolution === undefined}
         onClick={() => selectedSolution && setJointVector(selectedSolution.q)}
         type="button"
       >
-        应用所选逆解
+        应用当前预览解
       </button>
     </section>
   )

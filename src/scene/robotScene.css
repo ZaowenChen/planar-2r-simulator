@@ -11,5 +11,13 @@
 .robot-scene__legend ul { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font: .72rem ui-monospace, SFMono-Regular, Menlo, monospace; }
 .robot-scene__legend li { display: inline-flex; align-items: center; gap: 6px; }
 .robot-scene__legend i { width: 8px; height: 8px; border-radius: 50%; }
-.robot-scene__frame-label, .robot-scene__com-label { display: block; padding: 1px 3px; border-radius: 2px; color: #f4f7f6; background: rgb(8 24 35 / 76%); font: 16px ui-monospace, monospace; white-space: nowrap; pointer-events: none; }
+.robot-scene__frame-label, .robot-scene__com-label { display: flex; align-items: baseline; gap: 4px; padding: 2px 4px; border: 1px solid rgb(144 203 197 / 38%); border-radius: 2px; color: #f4f7f6; background: rgb(8 24 35 / 82%); font: 13px ui-monospace, monospace; white-space: nowrap; pointer-events: none; }
+.robot-scene__frame-label small { color: #90cbc5; font-size: 10px; }
 .robot-scene__com-label { color: #f5c86b; font-weight: 700; }
+.robot-scene__axis-label { display: block; padding: 0 3px; color: #fff; background: rgb(8 24 35 / 68%); font: 12px ui-monospace, monospace; pointer-events: none; }
+.robot-scene__robot-label, .robot-scene__annotation-label, .robot-scene__dimension-label, .robot-scene__angle-label { display: block; padding: 2px 5px; border-radius: 2px; color: #f7faf9; background: rgb(8 24 35 / 82%); font: 12px ui-monospace, monospace; white-space: nowrap; pointer-events: none; }
+.robot-scene__robot-label--ghost { color: #f5c86b; border: 1px dashed rgb(245 200 107 / 70%); }
+.robot-scene__annotation-label { color: #f5c86b; font-weight: 700; }
+.robot-scene__dimension-label, .robot-scene__angle-label { color: #b9deda; opacity: .72; }
+.robot-scene__dimension-label.is-active, .robot-scene__angle-label.is-active { color: #fff; opacity: 1; }
+.robot-scene__vector-label { font-size: 10px; }

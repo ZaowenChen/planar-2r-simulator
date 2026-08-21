@@ -35,6 +35,25 @@ describe('shared laboratory store', () => {
     }])
   })
 
+  it('sets an inverse-kinematics target vector atomically without changing the robot pose', () => {
+    const before = useLabStore.getState()
+    const qBefore = before.jointState.q
+    const revisionBefore = before.calculation.revision
+    let publications = 0
+    const unsubscribe = useLabStore.subscribe(() => {
+      publications += 1
+    })
+
+    before.setDesiredPositionVector([1.2, -0.4, 2.1])
+    unsubscribe()
+
+    const after = useLabStore.getState()
+    expect(after.desiredPosition).toEqual([1.2, -0.4, 2.1])
+    expect(after.jointState.q).toEqual(qBefore)
+    expect(after.calculation.revision).toBe(revisionBefore)
+    expect(publications).toBe(1)
+  })
+
   it('ignores a malformed runtime joint vector without publishing or recalculating', () => {
     const before = useLabStore.getState()
     let publications = 0

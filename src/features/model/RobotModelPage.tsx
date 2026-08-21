@@ -4,6 +4,7 @@ import { NumericField } from '../../components/NumericField'
 import { RobotScene } from '../../scene/RobotScene'
 import { useLabStore } from '../../state/labStore'
 import { WorkbenchLayout } from '../../app/WorkbenchLayout'
+import { metresToMillimetres, millimetresToMetres } from '../kinematics/presentation'
 import { DhTable } from './DhTable'
 
 interface ParameterFieldProps {
@@ -12,6 +13,7 @@ interface ParameterFieldProps {
   unit: string
   value: number
   constraint: 'nonnegative' | 'positive' | 'finite'
+  displayInMillimetres?: boolean
 }
 
 function validationMessage(constraint: ParameterFieldProps['constraint'], raw: string): string | undefined {
@@ -22,21 +24,36 @@ function validationMessage(constraint: ParameterFieldProps['constraint'], raw: s
   return undefined
 }
 
-function ParameterField({ label, path, unit, value, constraint }: ParameterFieldProps) {
+function ParameterField({
+  label,
+  path,
+  unit,
+  value,
+  constraint,
+  displayInMillimetres = false,
+}: ParameterFieldProps) {
   const setParameterField = useLabStore((state) => state.setParameterField)
   const storeIssue = useLabStore((state) => state.fieldIssues[path])
-  const [draft, setDraft] = useState(String(value))
+  const displayValue = (current: number) => String(
+    displayInMillimetres ? metresToMillimetres(current) : current,
+  )
+  const [draft, setDraft] = useState(displayValue(value))
   const [localIssue, setLocalIssue] = useState<string>()
 
   useEffect(() => {
-    setDraft(String(value))
+    setDraft(displayValue(value))
     setLocalIssue(undefined)
-  }, [value])
+  }, [displayInMillimetres, value])
 
   const commit = (raw: string) => {
     const issue = validationMessage(constraint, raw)
     setLocalIssue(issue)
-    if (issue === undefined) setParameterField(path, raw)
+    if (issue === undefined) {
+      const storedValue = displayInMillimetres
+        ? millimetresToMetres(Number(raw))
+        : Number(raw)
+      setParameterField(path, String(storedValue))
+    }
   }
 
   let error = localIssue
@@ -79,9 +96,9 @@ export function RobotModelPage() {
           <p className="section-label">模型参数</p>
           <h3>几何与环境参数</h3>
           <div className="field-grid">
-            <ParameterField constraint="nonnegative" label="基座高度 d₁" path="geometry.d1" unit="m" value={parameters.geometry.d1} />
-            <ParameterField constraint="positive" label="第二连杆长度 l₂" path="geometry.l2" unit="m" value={parameters.geometry.l2} />
-            <ParameterField constraint="positive" label="第三连杆长度 l₃" path="geometry.l3" unit="m" value={parameters.geometry.l3} />
+            <ParameterField constraint="nonnegative" displayInMillimetres label="基座高度 d₁" path="geometry.d1" unit="mm" value={parameters.geometry.d1} />
+            <ParameterField constraint="positive" displayInMillimetres label="第二连杆长度 l₂" path="geometry.l2" unit="mm" value={parameters.geometry.l2} />
+            <ParameterField constraint="positive" displayInMillimetres label="第三连杆长度 l₃" path="geometry.l3" unit="mm" value={parameters.geometry.l3} />
             {parameters.links.map((link, index) => (
               <ParameterField
                 constraint="positive"
@@ -111,7 +128,7 @@ export function RobotModelPage() {
             <p className="section-label">建系约定</p>
             <h3>坐标系定义</h3>
             <p>基坐标系 <InlineMath math="\{0\}" /> 的 z 轴竖直向上；各关节轴采用右手定则，末端坐标系 <InlineMath math="\{e\}" /> 固连于第三连杆末端。</p>
-            <p>模型为偏航–俯仰–俯仰 3R 串联机构，长度、质量与重力统一采用 SI 制。</p>
+            <p>模型为偏航–俯仰–俯仰 3R 串联机构；界面长度使用毫米，质量与重力保持 SI 制，长度参数在计算核心中自动换算为米。</p>
           </section>
           <DhTable parameters={parameters} />
         </div>

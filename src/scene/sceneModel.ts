@@ -65,6 +65,98 @@ export interface CoordinateFrameModel {
   axes: { x: Vector3; y: Vector3; z: Vector3 }
   axisLength: number
   visible: boolean
+  opacity?: number
+  detail?: 'name' | 'axes'
+  originLabel?: string
+  visibleAxes?: readonly ('x' | 'y' | 'z')[]
+  showFrameLabel?: boolean
+  lineWidth?: number
+}
+
+export interface SceneCameraPresetModel {
+  id: 'overview' | 'top' | 'work-plane' | 'tool'
+  position: Vector3
+  target: Vector3
+  up: Vector3
+}
+
+export interface ScenePointModel {
+  id: string
+  label?: string
+  position: Vector3
+  color: string
+  opacity?: number
+  labelOffset?: Vector3
+}
+
+export interface SceneDimensionModel {
+  id: string
+  label: string
+  showLabel?: boolean
+  start: Vector3
+  end: Vector3
+  color: string
+  style: 'solid' | 'dashed'
+  emphasized: boolean
+  labelPosition?: Vector3
+}
+
+export interface SceneArcModel {
+  id: string
+  label: string
+  center: Vector3
+  basisX: Vector3
+  basisY: Vector3
+  radius: number
+  startAngle: number
+  endAngle: number
+  color: string
+  emphasized: boolean
+  labelPosition?: Vector3
+}
+
+export interface SceneTeachingVectorModel {
+  id: string
+  label: string
+  labelPositionFactor?: number
+  labelOffset?: Vector3
+  origin: Vector3
+  vector: Vector3
+  unit: string
+  color: string
+  opacity?: number
+}
+
+export interface SceneWorkPlaneModel {
+  origin: Vector3
+  normal: Vector3
+  width: number
+  height: number
+  color: string
+  opacity: number
+}
+
+export interface RobotGeometryModel {
+  id: string
+  label?: string
+  joints: readonly JointMarkerModel[]
+  links: readonly LinkModel[]
+  opacity: number
+  style: 'solid' | 'ghost'
+}
+
+export interface ScenePresentationModel {
+  camera: SceneCameraPresetModel
+  frames: readonly CoordinateFrameModel[]
+  points: readonly ScenePointModel[]
+  dimensions: readonly SceneDimensionModel[]
+  arcs: readonly SceneArcModel[]
+  vectors: readonly SceneTeachingVectorModel[]
+  workPlane: SceneWorkPlaneModel | null
+  primaryRobot: RobotGeometryModel | null
+  ghostRobots: readonly RobotGeometryModel[]
+  hideBaseRobot: boolean
+  note: string
 }
 
 export interface CenterOfMassMarkerModel {
@@ -225,6 +317,82 @@ function axesFromTransform(transform: Matrix4) {
     x: [transform[0][0], transform[1][0], transform[2][0]] as Vector3,
     y: [transform[0][1], transform[1][1], transform[2][1]] as Vector3,
     z: [transform[0][2], transform[1][2], transform[2][2]] as Vector3,
+  }
+}
+
+export function coordinateFrameFromTransform(input: {
+  id: string
+  label: string
+  transform: Matrix4
+  axisLength: number
+  visible?: boolean
+  opacity?: number
+  detail?: CoordinateFrameModel['detail']
+  originLabel?: string
+  visibleAxes?: CoordinateFrameModel['visibleAxes']
+  showFrameLabel?: boolean
+  lineWidth?: number
+}): CoordinateFrameModel {
+  return {
+    id: input.id,
+    label: input.label,
+    position: [
+      input.transform[0][3],
+      input.transform[1][3],
+      input.transform[2][3],
+    ],
+    quaternion: serializableQuaternion(quaternionFromTransform(input.transform)),
+    axes: axesFromTransform(input.transform),
+    axisLength: input.axisLength,
+    visible: input.visible ?? true,
+    opacity: input.opacity,
+    detail: input.detail,
+    originLabel: input.originLabel,
+    visibleAxes: input.visibleAxes,
+    showFrameLabel: input.showFrameLabel,
+    lineWidth: input.lineWidth,
+  }
+}
+
+export function buildRobotGeometry(
+  forward: ForwardKinematicsResult,
+  input: {
+    id?: string
+    label?: string
+    opacity?: number
+    style?: RobotGeometryModel['style']
+    showLabel?: boolean
+  } = {},
+): RobotGeometryModel {
+  const style = input.style ?? 'solid'
+  return {
+    id: input.id ?? 'robot-current',
+    label: input.showLabel === false ? undefined : input.label ?? '当前机器人',
+    opacity: input.opacity ?? 1,
+    style,
+    joints: forward.origins.map((position, index) => ({
+      id: `${input.id ?? 'robot-current'}-joint-${index}`,
+      label: index === 3 ? 'e' : String(index + 1),
+      position,
+      radius: index === 3 ? 0.105 : 0.13,
+      color: style === 'ghost'
+        ? '#f0b65c'
+        : index === 3 ? '#f5c86b' : '#e8f0ef',
+    })),
+    links: forward.origins.slice(0, -1).map((start, index) => {
+      const end = forward.origins[index + 1]
+      const segment = vectorBetween(start, end)
+      return {
+        id: `${input.id ?? 'robot-current'}-link-${index + 1}`,
+        start,
+        end,
+        midpoint: midpoint(start, end),
+        quaternion: serializableQuaternion(quaternionFromYAxis(segment)),
+        length: magnitude(segment),
+        radius: style === 'ghost' ? 0.052 : 0.075,
+        color: style === 'ghost' ? '#f0b65c' : index === 0 ? '#74a8a5' : '#dcecea',
+      }
+    }),
   }
 }
 
@@ -401,28 +569,11 @@ export function buildSceneModel(input: SceneCalculationInput): SceneModel {
     })),
   ]
 
+  const robotGeometry = buildRobotGeometry(forward, { id: 'robot' })
+
   return {
-    joints: forward.origins.map((position, index) => ({
-      id: `joint-${index}`,
-      label: index === 3 ? 'e' : String(index + 1),
-      position,
-      radius: index === 3 ? 0.105 : 0.13,
-      color: index === 3 ? '#f5c86b' : '#e8f0ef',
-    })),
-    links: forward.origins.slice(0, -1).map((start, index) => {
-      const end = forward.origins[index + 1]
-      const segment = vectorBetween(start, end)
-      return {
-        id: `link-${index + 1}`,
-        start,
-        end,
-        midpoint: midpoint(start, end),
-        quaternion: serializableQuaternion(quaternionFromYAxis(segment)),
-        length: magnitude(segment),
-        radius: 0.075,
-        color: index === 0 ? '#74a8a5' : '#dcecea',
-      }
-    }),
+    joints: robotGeometry.joints.map((joint, index) => ({ ...joint, id: `joint-${index}` })),
+    links: robotGeometry.links.map((link, index) => ({ ...link, id: `link-${index + 1}` })),
     coordinateFrames: frameTransforms.map((transform, index) => ({
       id: `frame-${index === 4 ? 'e' : index}`,
       label: index === 4 ? '{e}' : `{${index}}`,

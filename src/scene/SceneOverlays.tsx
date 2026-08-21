@@ -1,9 +1,17 @@
 import { Html, Line } from '@react-three/drei'
 import { CoordinateFrame } from './CoordinateFrame'
-import type { SceneModel, VectorOverlayModel } from './sceneModel'
+import { KinematicsTeachingOverlays } from './KinematicsTeachingOverlays'
+import { RobotChain } from './RobotChain'
+import type {
+  SceneModel,
+  ScenePresentationModel,
+  VectorOverlayModel,
+} from './sceneModel'
 
 export interface SceneOverlaysProps {
   sceneModel: SceneModel
+  presentation?: ScenePresentationModel
+  onObjectSelect?: (id: string) => void
 }
 
 function ScientificArrow({ vector }: { vector: VectorOverlayModel }) {
@@ -35,7 +43,11 @@ function ScientificArrow({ vector }: { vector: VectorOverlayModel }) {
   )
 }
 
-export function SceneOverlays({ sceneModel }: SceneOverlaysProps) {
+export function SceneOverlays({
+  sceneModel,
+  presentation,
+  onObjectSelect,
+}: SceneOverlaysProps) {
   const workspacePositions = new Float32Array(sceneModel.workspace.points.flatMap((point) => point))
 
   return (
@@ -48,27 +60,17 @@ export function SceneOverlays({ sceneModel }: SceneOverlaysProps) {
         />
       )}
 
-      {sceneModel.links.map((link) => link.length > 0 && (
-        <mesh
-          key={link.id}
-          name={link.id}
-          position={[...link.midpoint]}
-          quaternion={[...link.quaternion]}
-        >
-          <cylinderGeometry args={[link.radius, link.radius, link.length, 18]} />
-          <meshStandardMaterial color={link.color} metalness={0.08} roughness={0.72} />
-        </mesh>
-      ))}
+      {!presentation?.hideBaseRobot && (
+        <RobotChain
+          id="robot-base"
+          joints={sceneModel.joints}
+          links={sceneModel.links}
+          onObjectSelect={onObjectSelect}
+        />
+      )}
 
-      {sceneModel.joints.map((joint) => (
-        <mesh key={joint.id} name={joint.id} position={[...joint.position]}>
-          <sphereGeometry args={[joint.radius, 20, 14]} />
-          <meshStandardMaterial color={joint.color} metalness={0.12} roughness={0.56} />
-        </mesh>
-      ))}
-
-      {sceneModel.coordinateFrames.map((frame) => (
-        <CoordinateFrame frame={frame} key={frame.id} />
+      {presentation === undefined && sceneModel.coordinateFrames.map((frame) => (
+        <CoordinateFrame frame={frame} key={frame.id} onSelect={onObjectSelect} />
       ))}
 
       {sceneModel.centerOfMassMarkers.map((marker) => marker.visible && (
@@ -109,6 +111,13 @@ export function SceneOverlays({ sceneModel }: SceneOverlaysProps) {
       {sceneModel.vectors.map((vector) => (
         <ScientificArrow key={vector.id} vector={vector} />
       ))}
+
+      {presentation !== undefined && (
+        <KinematicsTeachingOverlays
+          onObjectSelect={onObjectSelect}
+          presentation={presentation}
+        />
+      )}
     </group>
   )
 }

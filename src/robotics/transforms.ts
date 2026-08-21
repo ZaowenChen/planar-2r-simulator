@@ -1,5 +1,30 @@
 import type { Matrix3, Matrix4, Vector3 } from './types'
 
+const IDENTITY_4: Matrix4 = [
+  [1, 0, 0, 0],
+  [0, 1, 0, 0],
+  [0, 0, 1, 0],
+  [0, 0, 0, 1],
+]
+
+export type DhTransformOperationKind = 'rz' | 'tz' | 'tx' | 'rx'
+
+export interface DhTransformOperation {
+  kind: DhTransformOperationKind
+  transform: Matrix4
+  cumulative: Matrix4
+}
+
+export interface DhTransformDecomposition {
+  operations: readonly [
+    DhTransformOperation,
+    DhTransformOperation,
+    DhTransformOperation,
+    DhTransformOperation,
+  ]
+  result: Matrix4
+}
+
 export function rotationX(angle: number): Matrix4 {
   const cosine = Math.cos(angle)
   const sine = Math.sin(angle)
@@ -71,7 +96,25 @@ export function translationOf(transform: Matrix4): Vector3 {
 }
 
 export function dhTransform(theta: number, a: number, alpha: number, d: number): Matrix4 {
-  const rotateThenTranslateZ = multiply4(rotationZ(theta), translation(0, 0, d))
-  const translateX = multiply4(rotateThenTranslateZ, translation(a, 0, 0))
-  return multiply4(translateX, rotationX(alpha))
+  return decomposeDhTransform(theta, a, alpha, d).result
+}
+
+export function decomposeDhTransform(
+  theta: number,
+  a: number,
+  alpha: number,
+  d: number,
+): DhTransformDecomposition {
+  const transforms = [
+    { kind: 'rz' as const, transform: rotationZ(theta) },
+    { kind: 'tz' as const, transform: translation(0, 0, d) },
+    { kind: 'tx' as const, transform: translation(a, 0, 0) },
+    { kind: 'rx' as const, transform: rotationX(alpha) },
+  ] as const
+  let cumulative = IDENTITY_4
+  const operations = transforms.map((operation) => {
+    cumulative = multiply4(cumulative, operation.transform)
+    return { ...operation, cumulative }
+  }) as unknown as DhTransformDecomposition['operations']
+  return { operations, result: cumulative }
 }

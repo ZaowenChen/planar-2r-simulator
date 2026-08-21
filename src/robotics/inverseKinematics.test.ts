@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_ROBOT_PARAMETERS } from './defaults'
-import { forwardKinematics, inverseKinematics } from './kinematics'
+import {
+  forwardKinematics,
+  inverseKinematics,
+  inverseKinematicsCandidates,
+} from './kinematics'
 import type { Vector3 } from './types'
 
 function expectVectorClose(actual: Vector3, expected: Vector3, tolerance: number): void {
@@ -16,6 +20,28 @@ function wrappedDistance(left: Vector3, right: Vector3): number {
 }
 
 describe('closed-form inverse kinematics', () => {
+  it('enumerates both elbow branches in both radial families from one formula source', () => {
+    const candidates = inverseKinematicsCandidates(
+      [2.7, 1.5, 1],
+      DEFAULT_ROBOT_PARAMETERS,
+    )
+
+    expect(candidates.map((candidate) => `${candidate.radialFamily}:${candidate.branch}`))
+      .toEqual([
+        'conventional:elbow-down',
+        'conventional:elbow-up',
+        'folded:elbow-down',
+        'folded:elbow-up',
+      ])
+    for (const candidate of candidates) {
+      expectVectorClose(
+        forwardKinematics(candidate.q, DEFAULT_ROBOT_PARAMETERS).endEffectorPosition,
+        [2.7, 1.5, 1],
+        1e-8,
+      )
+    }
+  })
+
   it.each([
     [1.8, 0.8, 1.4],
     [2.2, -0.7, 0.2],

@@ -7,6 +7,8 @@ export interface SingularityMetrics {
   singularValues: Vector3
   minimumSingularValue: number
   conditionNumber: number
+  inverseConditionNumber: number
+  yoshikawaManipulability: number
   isSingular: boolean
 }
 
@@ -49,13 +51,24 @@ export function singularityMetrics(
   const maximumSingularValue = sortedValues[0]
   const minimumSingularValue = sortedValues[2]
   const numericalZero = Number.EPSILON * 3 * maximumSingularValue
+  const numericallySingular = maximumSingularValue === 0
+    || minimumSingularValue <= numericalZero
 
   return {
     singularValues: sortedValues,
     minimumSingularValue,
-    conditionNumber: minimumSingularValue <= numericalZero
+    conditionNumber: numericallySingular
       ? Number.POSITIVE_INFINITY
       : maximumSingularValue / minimumSingularValue,
+    inverseConditionNumber: numericallySingular
+      ? 0
+      : minimumSingularValue / maximumSingularValue,
+    // For the square translational Jacobian this is equivalent to
+    // sqrt(det(Jv Jv^T)), but the singular-value product is more stable.
+    yoshikawaManipulability: sortedValues.reduce(
+      (product, value) => product * value,
+      1,
+    ),
     isSingular: minimumSingularValue <= threshold,
   }
 }
