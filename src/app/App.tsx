@@ -24,9 +24,9 @@ const MODULE_COPY: Record<LabModule, { kicker: string; title: string; summary: s
     summary: '用完整刚体模型分析力矩、能量与功率。',
   },
   experiments: {
-    kicker: '轨迹 · 力矩 · 时间响应',
-    title: '动态实验',
-    summary: '让动画、曲线与公式共享一个仿真时刻。',
+    kicker: 'JOG 示教 · PTP · 多项式轨迹',
+    title: '轨迹示教',
+    summary: '像使用机器人示教器一样记录点位、生成关节空间 PTP 轨迹，并同步观察公式、曲线与三维试运行。',
   },
 }
 
@@ -46,7 +46,7 @@ export function App() {
         </div>
         <p className="lab-masthead__note">
           偏航–俯仰–俯仰教学模型<br />
-          核心计算保持 SI 制 · 运动学显示 mm / °
+          核心计算保持 SI 制 · 教学界面显示 mm / °
         </p>
       </header>
 
@@ -60,10 +60,14 @@ export function App() {
           <p>{moduleCopy.summary}</p>
         </div>
         <StatusBanner
-          tone={calculation.singularity.isSingular ? 'warning' : 'success'}
-          title={calculation.singularity.isSingular ? '接近奇异位形' : '计算状态正常'}
+          tone={activeModule === 'experiments' ? 'info' : calculation.singularity.isSingular ? 'warning' : 'success'}
+          title={activeModule === 'experiments'
+            ? '纯运动学轨迹示教'
+            : calculation.singularity.isSingular ? '接近奇异位形' : '计算状态正常'}
         >
-          结果图修订 {calculation.revision}
+          {activeModule === 'experiments'
+            ? '不计算力矩、能量或动力学响应'
+            : `结果图修订 ${calculation.revision}`}
         </StatusBanner>
       </section>
 

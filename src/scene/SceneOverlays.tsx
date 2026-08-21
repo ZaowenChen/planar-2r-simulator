@@ -108,6 +108,20 @@ export function SceneOverlays({
         />
       )}
 
+      {sceneModel.markers.map((marker) => (
+        <group key={marker.id} name={marker.id} position={[...marker.position]}>
+          <mesh>
+            <sphereGeometry args={[0.1, 18, 14]} />
+            <meshBasicMaterial color={marker.color} />
+          </mesh>
+          {marker.label !== undefined && (
+            <Html center position={[0, 0, 0.2]} transform sprite>
+              <span className="robot-scene__marker-label">{marker.label}</span>
+            </Html>
+          )}
+        </group>
+      ))}
+
       {sceneModel.vectors.map((vector) => (
         <ScientificArrow key={vector.id} vector={vector} />
       ))}

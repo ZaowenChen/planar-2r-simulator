@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('completes a kinematics and inverse-dynamics learning flow', async ({ page }) => {
+test('completes a kinematics and PTP trajectory-teaching flow', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '空间 3R 机器人学交互实验室' })).toBeVisible()
   await page.getByRole('button', { name: '运动学' }).click()
@@ -10,11 +10,14 @@ test('completes a kinematics and inverse-dynamics learning flow', async ({ page 
     await page.getByRole('button', { name: '下一步' }).click()
   }
   await expect(page.getByTestId('endpoint-result')).toContainText('mm')
-  await page.getByRole('button', { name: '动态实验' }).click()
-  await page.getByRole('tab', { name: '逆动力学' }).click()
-  await page.getByRole('button', { name: '生成实验' }).click()
-  await page.getByRole('button', { name: '播放' }).click()
-  await expect(page.getByTestId('simulation-time')).not.toHaveText('0.000 s')
+  await page.getByRole('button', { name: '轨迹示教' }).click()
+  await page.getByRole('button', { name: '记录当前位置为示教点' }).click()
+  await page.getByRole('button', { name: 'J1 正向点动' }).click()
+  await page.getByRole('button', { name: '记录当前位置为示教点' }).click()
+  await page.getByRole('button', { name: '生成轨迹预览' }).click()
+  await expect(page.getByRole('heading', { name: '五次多项式轨迹' })).toBeVisible()
+  await page.getByRole('button', { name: '试运行' }).click()
+  await expect(page.getByTestId('trajectory-time')).not.toContainText('0.000 /')
 })
 
 test('captures the 1440 by 1000 desktop preview artifact', async ({ page }, testInfo) => {
@@ -32,12 +35,14 @@ test('keeps desktop learning modules inside their intended workbench layout', as
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/')
 
-  for (const moduleName of ['机器人模型', '运动学', '动力学', '动态实验']) {
+  for (const moduleName of ['机器人模型', '运动学', '动力学', '轨迹示教']) {
     await page.getByRole('button', { name: moduleName, exact: true }).click()
     const sections = moduleName === '运动学'
       ? page.locator('.kinematics-stage > section')
-      : page.locator('.workbench > section')
-    await expect(sections).toHaveCount(moduleName === '运动学' ? 2 : moduleName === '动态实验' ? 4 : 3)
+      : moduleName === '轨迹示教'
+        ? page.locator('.trajectory-workbench > section')
+        : page.locator('.workbench > section')
+    await expect(sections).toHaveCount(moduleName === '运动学' ? 2 : moduleName === '轨迹示教' ? 4 : 3)
 
     const boxes = await sections.evaluateAll((elements) => elements.map((element) => {
       const rect = element.getBoundingClientRect()
@@ -49,6 +54,34 @@ test('keeps desktop learning modules inside their intended workbench layout', as
         .toBeLessThanOrEqual(Math.ceil(box.right - box.left))
     })
   }
+})
+
+test('teaches quintic and trapezoidal PTP profiles with a large 3D scene', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  await page.getByRole('button', { name: '轨迹示教' }).click()
+
+  const scene = page.getByRole('region', { name: '轨迹三维示教视图' })
+  const pendant = page.getByRole('region', { name: '虚拟示教器' })
+  const [sceneBox, pendantBox] = await Promise.all([scene.boundingBox(), pendant.boundingBox()])
+  expect(sceneBox).not.toBeNull()
+  expect(pendantBox).not.toBeNull()
+  expect(sceneBox!.width).toBeGreaterThan(pendantBox!.width * 1.5)
+
+  await page.getByRole('button', { name: '记录当前位置为示教点' }).click()
+  await page.getByRole('button', { name: 'J2 正向点动' }).click()
+  await page.getByRole('button', { name: '记录当前位置为示教点' }).click()
+  await page.getByRole('button', { name: '生成轨迹预览' }).click()
+  await expect(page.getByRole('heading', { name: '五次插值公式' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '位置 q' })).toBeVisible()
+
+  await page.getByLabel('PTP 轨迹类型').selectOption('trapezoidal')
+  await expect(page.getByRole('heading', { name: '梯形速度轨迹' })).toBeVisible()
+  await expect(page.getByText(/加速度会从 4.5 跳到 0/)).toBeVisible()
+
+  await page.getByRole('button', { name: '放大 3D' }).click()
+  await expect(page.locator('.trajectory-workbench')).toHaveClass(/is-scene-expanded/)
+  await expect(page.getByRole('button', { name: '退出放大' })).toBeVisible()
 })
 
 test('keeps the Three.js canvas inside the visual workbench column', async ({ page }) => {
@@ -100,25 +133,30 @@ test('links the D–H table, geometric derivation, and 3D teaching annotations',
   await expect(page.locator('.robot-scene__dimension-label', { hasText: 'r =' })).toBeVisible()
   await expect(page.locator('.robot-scene__dimension-label', { hasText: 'h =' })).toBeVisible()
   await page.getByRole('button', { name: '下一步' }).click()
-  await expect(page.locator('.robot-scene__dimension-label', { hasText: 's =' })).toBeVisible()
-  await page.getByRole('button', { name: '下一步' }).click()
+  await expect(page.getByRole('heading', { name: '判断可达' })).toBeVisible()
   await expect(page.locator('.robot-scene__dimension-label', { hasText: 'l₂ =' })).toBeVisible()
   await expect(page.locator('.robot-scene__dimension-label', { hasText: 'l₃ =' })).toBeVisible()
   await expect(page.locator('.robot-scene__dimension-label', { hasText: 's =' })).toBeVisible()
 
   await page.getByRole('button', { name: '下一步' }).click()
+  await expect(page.getByRole('heading', { name: '求关节角' })).toBeVisible()
+  await page.getByRole('button', { name: /查看完整计算过程/ }).click()
+  await expect(page.getByTestId('ik-calculation-card-1')).toContainText('肘角 θ₃')
+  await expect(page.getByTestId('ik-calculation-card-2')).toContainText('方向角 γ')
+  await expect(page.getByTestId('ik-calculation-card-3')).toContainText('补偿角 δ')
+  await expect(page.getByTestId('ik-calculation-card-4')).toContainText('肩角 θ₂')
   await expect(page.locator('.robot-scene__angle-label', { hasText: 'θ₃ =' })).toBeVisible()
+  await expect(page.locator('.robot-scene__angle-label', { hasText: 'θ₂ =' })).toBeVisible()
+  await expect(page.locator('.robot-scene__angle-label')).toHaveCount(2)
+
   await page.getByRole('button', { name: '下一步' }).click()
-  await expect(page.locator('.robot-scene__angle-label', { hasText: 'γ =' })).toBeVisible()
-  await page.getByRole('button', { name: '下一步' }).click()
-  await expect(page.locator('.robot-scene__angle-label', { hasText: 'δ =' })).toBeVisible()
-  await page.getByRole('button', { name: '下一步' }).click()
-  await expect(page.locator('.robot-scene__angle-label')).toHaveCount(3)
-  await page.getByRole('button', { name: '下一步' }).click()
-  await expect(page.getByRole('group', { name: '全部解析几何候选' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '选择构型' })).toBeVisible()
+  await expect(page.getByRole('group', { name: '肘上肘下构型选择' })).toBeVisible()
   await expect(page.locator('.robot-scene__dimension-label', { hasText: 'rₛ =' })).toBeVisible()
 
-  await page.getByRole('button', { name: /位置回代/ }).click()
+  await page.getByRole('button', { name: '下一步' }).click()
+  await expect(page.getByRole('heading', { name: 'FK 回代验证' })).toBeVisible()
+  await page.getByText('Advanced · 完整回代与姿态矩阵').click()
   await expect(page.getByRole('table', { name: '逆解回代比较' })).toBeVisible()
   await expect(page.locator('.robot-scene__dimension-label', { hasText: '已放大，仅用于观察' })).toBeVisible()
 })

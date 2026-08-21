@@ -1,7 +1,7 @@
 import type { PlotlyHTMLElement } from 'plotly.js'
 import Plotly from 'plotly.js/dist/plotly-basic.js'
 import type { SimulationSample } from '../robotics/integration'
-import { simulationSamplesToCsv } from './csv'
+import { simulationSamplesToCsv, trajectorySamplesToCsv, type TrajectoryCsvSample } from './csv'
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
@@ -18,6 +18,16 @@ export function downloadSimulationCsv(
 ): void {
   downloadBlob(
     new Blob([simulationSamplesToCsv(samples)], { type: 'text/csv;charset=utf-8' }),
+    filename,
+  )
+}
+
+export function downloadTrajectoryCsv(
+  samples: readonly TrajectoryCsvSample[],
+  filename = '3r-ptp-trajectory.csv',
+): void {
+  downloadBlob(
+    new Blob([trajectorySamplesToCsv(samples)], { type: 'text/csv;charset=utf-8' }),
     filename,
   )
 }

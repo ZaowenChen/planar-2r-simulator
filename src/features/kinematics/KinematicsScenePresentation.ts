@@ -433,10 +433,10 @@ export function buildKinematicsScenePresentation({
     const theta3 = detail.solution.q[2]
     const gamma = detail.targetDirectionDegrees * Math.PI / 180
     const radius = Math.max(0.28, maxReach * 0.105)
-    if (step === 9) {
+    if (step === 9 || step === 12) {
       arcs.push(angleArc('theta3', `θ₃ = ${detail.qDegrees[2].toFixed(1)}°`, elbow, radialDirection, Z_AXIS, radius * 0.82, theta2, theta2 + theta3, teaching, '#ef6a54'))
     }
-    if (step === 10 || step === 12) {
+    if (step === 10) {
       arcs.push(angleArc(
         'gamma',
         `γ = ${detail.targetDirectionDegrees.toFixed(1)}°`,
@@ -448,12 +448,10 @@ export function buildKinematicsScenePresentation({
         gamma,
         teaching,
         '#22b8b0',
-        step === 12
-          ? add(add(shoulder, scale(radialDirection, maxReach * 0.28)), scale(Z_AXIS, maxReach * 0.1))
-          : undefined,
+        undefined,
       ))
     }
-    if (step === 11 || step === 12) {
+    if (step === 11) {
       arcs.push(angleArc(
         'delta',
         `δ = ${detail.triangleCorrectionDegrees.toFixed(1)}°`,
@@ -465,9 +463,7 @@ export function buildKinematicsScenePresentation({
         gamma,
         teaching,
         '#d8922d',
-        step === 12
-          ? add(add(shoulder, scale(radialDirection, maxReach * 0.55)), scale(Z_AXIS, -maxReach * 0.16))
-          : undefined,
+        undefined,
       ))
     }
     if (step === 12) {
@@ -501,8 +497,8 @@ export function buildKinematicsScenePresentation({
       '#22b8b0',
     ))
     const alternatives = derivation.inverse.candidateDetails.filter((candidate) => {
-      return candidate.solution.branch === detail.solution.branch
-        && candidate.solution.radialFamily !== detail.solution.radialFamily
+      return candidate.solution.branch !== detail.solution.branch
+        && candidate.solution.radialFamily === detail.solution.radialFamily
     })
     alternatives.forEach((candidate) => ghostRobots.push(buildRobotGeometry(
       forwardKinematics(candidate.solution.q, parameters),
@@ -633,7 +629,7 @@ export function buildKinematicsScenePresentation({
     : null
 
   const note = detail !== undefined && step === 13
-    ? `${detail.solution.radialFamily === 'folded' ? '折叠' : '常规'}径向；肘部分类与径向族是两个独立维度。`
+    ? `当前为${detail.solution.branch === 'elbow-down' ? '肘下' : '肘上'}构型；虚影用于比较同一径向族的另一肘部姿态。`
     : step === 2
       ? 'D–H 四段操作用于构造相邻坐标系，不代表机器人实际沿四段轨迹运动。'
       : step === 16 || step === 18

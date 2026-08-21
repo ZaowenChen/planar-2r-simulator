@@ -263,6 +263,86 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
 .walkthrough-actions button { border: 1px solid var(--ink); color: var(--ink); background: transparent; cursor: pointer; }
 .walkthrough-actions button:last-child { color: #fff; background: var(--ink); }
 .walkthrough-actions button:disabled { opacity: .4; cursor: not-allowed; }
+
+.kinematics-workspace[data-mode="inverse"] .kinematics-stage__analysis,
+.kinematics-workspace[data-mode="inverse"] .analysis-stack { min-height: 0; }
+.kinematics-workspace[data-mode="inverse"] .analysis-stack { height: 100%; }
+.kinematics-workspace[data-mode="inverse"] .kinematics-walkthrough { display: flex; flex-direction: column; height: 100%; max-height: 650px; overflow: hidden; border: 1px solid var(--rule); border-top: 3px solid var(--teal); border-radius: 12px; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-header { flex: 0 0 auto; padding: 14px 16px 10px; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-header h3 { font-size: 1.25rem; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-local-steps { flex: 0 0 auto; justify-content: center; gap: 2px; padding: 8px 10px; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-local-steps button { flex: 1 1 0; flex-direction: column; gap: 4px; min-width: 60px; min-height: 60px; padding: 4px 2px; border-right: 0; font-size: .64rem; line-height: 1.2; white-space: normal; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-local-steps button > span { display: grid; width: 24px; height: 24px; border: 1px solid var(--rule); border-radius: 999px; place-items: center; color: var(--muted); background: var(--paper); font-size: .68rem; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-local-steps button[data-state="completed"] { color: var(--ink); }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-local-steps button[data-state="completed"] > span { border-color: var(--teal); color: #fff; background: var(--teal); }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-local-steps button[aria-current="step"] { color: var(--ink); background: transparent; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-local-steps button[aria-current="step"] > span { border: 2px solid var(--teal); color: var(--teal); background: var(--paper); }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-symbols { flex: 0 0 auto; padding-top: 8px; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-body { flex: 1 1 auto; align-content: start; overflow-x: hidden; overflow-y: auto; padding: 12px 16px 16px; scrollbar-color: var(--rule) transparent; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-actions { flex: 0 0 auto; margin: 0; padding: 10px 16px; border-top: 1px solid var(--rule); background: var(--paper); }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-actions button { min-height: 42px; border-color: var(--rule); border-radius: 8px; }
+.kinematics-workspace[data-mode="inverse"] .walkthrough-actions button:last-child { border-color: var(--teal); background: var(--teal); }
+
+.ik-stage-field { min-width: 0; padding: 10px 12px; border-radius: 8px; background: var(--canvas); }
+.ik-stage-field--result { border: 1px solid var(--teal); background: var(--teal-soft); }
+.ik-stage-field__label { margin: 0 0 4px !important; color: var(--muted) !important; font-size: .66rem !important; font-weight: 700; letter-spacing: .06em; }
+.ik-stage-field--result .ik-stage-field__label { color: var(--teal) !important; }
+.ik-stage-field > div { min-width: 0; }
+.ik-stage-field > div > :first-child { margin-top: 0; }
+.ik-stage-field > div > :last-child { margin-bottom: 0; }
+.ik-stage-field p { margin: 0; color: var(--ink); font-size: .76rem; line-height: 1.55; }
+.ik-stage-field strong { font-size: .92rem; }
+.ik-stage-field .katex-display { margin: .25em 0; overflow-x: auto; overflow-y: hidden; font-size: .76em; text-align: left; }
+.ik-stage-field .katex-display > .katex { text-align: left; }
+.ik-stage-field .status-banner { padding: 0; border-left: 0; background: transparent; }
+.ik-stage-field .status-banner > div { color: var(--ink); }
+.ik-compact-results { display: grid; gap: 6px; }
+.ik-compact-results span { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .76rem; font-variant-numeric: tabular-nums; }
+.ik-compact-results strong { font-size: .76rem; }
+
+.ik-calculation-disclosure { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid var(--rule); border-radius: 12px; color: var(--ink); background: var(--paper); cursor: pointer; text-align: left; }
+.ik-calculation-disclosure[aria-expanded="true"] { border-color: var(--teal); background: var(--teal-soft); }
+.ik-calculation-disclosure > span:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ik-calculation-disclosure strong { font-size: .86rem; }
+.ik-calculation-disclosure small { padding: 3px 8px; border-radius: 999px; color: var(--teal); background: var(--teal-soft); font-size: .62rem; font-weight: 700; }
+.ik-calculation-disclosure[aria-expanded="true"] small { background: rgb(255 255 255 / 58%); }
+.ik-calculation-disclosure > span:last-child { color: var(--teal); }
+.ik-calculation-process { display: grid; gap: 8px; min-width: 0; }
+.ik-calculation-process > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ik-calculation-process > header h4 { margin: 0; font-family: var(--serif); font-size: .96rem; }
+.ik-calculation-process > header span { color: var(--teal); font-size: .64rem; font-weight: 700; }
+.ik-calculation-card { display: grid; gap: 7px; min-width: 0; padding: 11px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--canvas); }
+.ik-calculation-card > header { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ik-calculation-card > header > span { display: grid; width: 28px; height: 24px; border-radius: 999px; place-items: center; color: var(--teal); background: var(--teal-soft); font-size: .64rem; font-weight: 800; }
+.ik-calculation-card h4 { margin: 0; font-size: .82rem; }
+.ik-calculation-card output { margin-left: auto; padding: 4px 8px; border-radius: 999px; color: var(--teal); background: var(--teal-soft); font-size: .67rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ik-calculation-card > div { min-width: 0; }
+.ik-calculation-card > div > p:first-child { margin: 0 0 2px; color: var(--muted); font-size: .62rem; font-weight: 700; letter-spacing: .05em; }
+.ik-calculation-card > div > p:not(:first-child), .ik-calculation-card__result > p { margin: 0; color: var(--ink); font-size: .72rem; line-height: 1.5; }
+.ik-calculation-card .katex-display { margin: .15em 0; overflow-x: auto; overflow-y: hidden; font-size: .7em; text-align: left; }
+.ik-calculation-card .katex-display > .katex { text-align: left; }
+.ik-calculation-card__result { padding-top: 6px; border-top: 1px solid rgb(22 123 120 / 22%); }
+.ik-calculation-card__result .katex { color: var(--teal); }
+
+.ik-solution-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ik-solution-card { display: grid; gap: 5px; min-width: 0; min-height: 134px; padding: 10px; border: 1px solid var(--rule); border-radius: 10px; color: var(--ink); background: var(--paper); cursor: pointer; text-align: left; }
+.ik-solution-card[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); background: var(--teal-soft); }
+.ik-solution-card__heading { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ik-solution-card__heading strong { font-family: var(--serif); font-size: .82rem; }
+.ik-solution-card__heading small { color: var(--teal); font-size: .58rem; font-weight: 800; }
+.ik-solution-card > span:not(.ik-solution-card__heading) { font-size: .7rem; font-variant-numeric: tabular-nums; }
+.ik-solution-card em { margin-top: 3px; color: var(--muted); font-size: .64rem; font-style: normal; line-height: 1.35; }
+.ik-advanced { min-width: 0; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); }
+.ik-advanced:not([open]) > :not(summary) { display: none; }
+.ik-advanced > summary { padding: 10px 12px; color: var(--ink); cursor: pointer; font-size: .72rem; font-weight: 700; }
+.ik-advanced[open] > summary { border-bottom: 1px solid var(--rule); }
+.ik-advanced > :not(summary) { margin: 10px 12px; }
+.ik-advanced > p { color: var(--muted); font-size: .74rem; line-height: 1.55; }
+.ik-advanced .geometry-diagram { margin: 10px 12px; }
+.ik-advanced .configuration-candidates { margin: 10px 12px; }
+.ik-orientation-matrices { display: grid; gap: 12px; }
+.ik-orientation-matrices > div { min-width: 0; overflow-x: auto; }
+.ik-orientation-matrices p { color: var(--muted); font-size: .72rem; }
 .dh-transform-player { display: grid; gap: 10px; }
 .dh-transform-player__chain { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .dh-transform-player__chain button { min-width: 0; min-height: 52px; padding: 5px; border: 1px solid var(--rule); color: var(--ink); background: #fff; cursor: pointer; overflow-x: auto; }
@@ -336,6 +416,115 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
 .time-series__chart-actions button { min-height: 32px; padding: 3px 8px; font-size: .7rem; }
 .time-series__grid .js-plotly-plot { width: 100%; min-width: 0; }
 
+.trajectory-workbench { display: grid; grid-template-columns: minmax(520px, 1.85fr) minmax(285px, 1fr) minmax(255px, .85fr); border: 1px solid var(--ink); background: var(--paper); }
+.trajectory-workbench > section { min-width: 0; padding: 14px; border-right: 1px solid var(--rule); }
+.trajectory-workbench__analysis { border-right: 0 !important; }
+.trajectory-workbench__timeline { grid-column: 1 / -1; border-top: 1px solid var(--rule); border-right: 0 !important; }
+.trajectory-workbench.is-scene-expanded .trajectory-workbench__scene { grid-column: 1 / -1; border-right: 0; }
+.trajectory-workbench.is-scene-expanded .trajectory-workbench__controls,
+.trajectory-workbench.is-scene-expanded .trajectory-workbench__analysis,
+.trajectory-workbench.is-scene-expanded .trajectory-workbench__timeline { display: none; }
+.trajectory-workbench.is-scene-expanded .robot-scene__viewport,
+.trajectory-workbench.is-scene-expanded .robot-scene__viewport canvas { min-height: 720px; }
+.trajectory-workbench__scene .robot-scene__viewport,
+.trajectory-workbench__scene .robot-scene__viewport canvas { min-height: 560px; }
+.trajectory-scene-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; padding: 9px 10px; border: 1px solid var(--rule); background: #fffdf8; }
+.trajectory-scene-toolbar p { margin-bottom: 3px; }
+.trajectory-scene-toolbar strong { display: block; font-family: var(--serif); }
+.trajectory-scene-toolbar output { display: block; margin-top: 3px; color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums; }
+.trajectory-scene-toolbar > div:last-child { display: flex; gap: 6px; }
+.trajectory-scene-toolbar button { min-height: 36px; padding: 6px 10px; border: 1px solid var(--ink); color: var(--ink); background: transparent; cursor: pointer; font-size: .72rem; }
+.trajectory-scene-toolbar button:first-child { color: #fff; background: var(--ink); }
+
+.teach-pendant { display: grid; gap: 13px; }
+.teach-pendant h3, .trajectory-lesson h3, .trajectory-charts h3, .trajectory-chart-placeholder h3 { margin: 0; font-family: var(--serif); }
+.teach-pendant__header { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.teach-pendant__header h3 { font-size: 1.35rem; }
+.teach-pendant__header > span { padding: 4px 7px; color: #235548; background: #daf0e9; font-size: .68rem; font-weight: 700; }
+.teach-pendant__intro { margin: 0; color: var(--muted); font-size: .78rem; line-height: 1.55; }
+.jog-controls { display: grid; gap: 6px; }
+.jog-row { display: grid; grid-template-columns: minmax(58px, 1fr) 42px 42px minmax(58px, auto); gap: 5px; align-items: center; }
+.jog-row strong { font-size: .74rem; }
+.jog-row button { min-height: 36px; border: 1px solid var(--ink); color: #fff; background: var(--ink); cursor: pointer; }
+.jog-row output { font-size: .76rem; font-variant-numeric: tabular-nums; text-align: right; }
+.jog-step-selector { display: grid; grid-template-columns: auto repeat(3, 1fr); gap: 4px; align-items: center; margin: 0; padding: 7px; border: 1px solid var(--rule); }
+.jog-step-selector legend { grid-column: 1 / -1; padding-inline: 4px; color: var(--muted); font-size: .7rem; font-weight: 700; }
+.jog-step-selector button { min-height: 34px; border: 1px solid var(--rule); color: var(--ink); background: #fff; cursor: pointer; font-size: .72rem; }
+.jog-step-selector button[aria-pressed="true"] { color: #fff; background: var(--teal); }
+.record-point-button, .trajectory-primary-action { width: 100%; border: 1px solid var(--ink); color: #fff; background: var(--ink); cursor: pointer; }
+.trajectory-primary-action { background: var(--amber); border-color: #8b5917; }
+.trajectory-section-heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.trajectory-section-heading span { display: block; margin-bottom: 3px; color: var(--teal); font-size: .65rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.trajectory-section-heading h3, .trajectory-section-heading h4 { margin: 0; font-family: var(--serif); }
+.trajectory-section-heading output, .trajectory-section-heading code { color: var(--muted); font-size: .68rem; font-variant-numeric: tabular-nums; }
+.teach-point-section, .ptp-instruction { display: grid; gap: 9px; padding-top: 11px; border-top: 1px solid var(--rule); }
+.trajectory-empty-state { margin: 0; padding: 10px; color: var(--muted); background: #eeeadf; font-size: .74rem; line-height: 1.5; }
+.teach-point-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.teach-point-list li { display: grid; grid-template-columns: 66px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 7px; border: 1px solid var(--rule); background: #fffdf8; }
+.teach-point-list input { width: 100%; min-height: 34px; padding: 5px 6px; border: 1px solid var(--rule); font-weight: 700; }
+.teach-point-list output { overflow: hidden; color: var(--muted); font-size: .65rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.teach-point-list li > div { display: flex; gap: 3px; }
+.teach-point-list button { min-height: 32px; padding: 4px 6px; border: 1px solid var(--ink); color: var(--ink); background: transparent; cursor: pointer; font-size: .63rem; }
+.teach-point-list .danger-button { color: var(--error); border-color: var(--error); }
+.ptp-point-pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 5px; align-items: end; }
+.ptp-point-pair > span { padding-bottom: 11px; font-weight: 800; }
+.ptp-point-pair label, .ptp-settings > label, .trajectory-playback label { display: grid; gap: 4px; color: var(--ink); font-size: .7rem; font-weight: 700; }
+.ptp-point-pair select, .ptp-settings select, .trajectory-playback select { width: 100%; min-height: 38px; padding-inline: 6px; border: 1px solid var(--rule); background: #fff; }
+.ptp-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.ptp-settings .numeric-field { gap: 4px; }
+.ptp-settings .numeric-field__label { font-size: .7rem; }
+.ptp-settings .numeric-field input { min-height: 38px; }
+.trajectory-metrics { display: grid; gap: 5px; margin: 0; }
+.trajectory-metrics > div { padding: 7px; border-left: 3px solid var(--teal); background: #edf6f3; }
+.trajectory-metrics dt { color: var(--muted); font-size: .62rem; font-weight: 700; }
+.trajectory-metrics dd { margin: 3px 0 0; font-size: .65rem; font-variant-numeric: tabular-nums; line-height: 1.4; }
+
+.trajectory-playback { display: grid; gap: 8px; margin-top: 9px; padding: 9px; border: 1px solid var(--rule); background: #fffdf8; }
+.trajectory-playback__controls { display: grid; grid-template-columns: auto auto auto minmax(94px, 1fr) auto; gap: 5px; align-items: end; }
+.trajectory-playback button { min-height: 36px; padding: 6px 9px; border: 1px solid var(--ink); color: #fff; background: var(--ink); cursor: pointer; font-size: .7rem; }
+.trajectory-playback button:disabled { opacity: .42; cursor: not-allowed; }
+.trajectory-timeline { display: grid !important; grid-template-columns: auto 1fr auto; gap: 8px !important; align-items: center; }
+.trajectory-timeline input { width: 100%; }
+.trajectory-timeline output { min-width: 100px; font-size: .7rem; font-variant-numeric: tabular-nums; text-align: right; }
+
+.trajectory-lesson { display: grid; gap: 12px; min-width: 0; }
+.trajectory-lesson--empty { align-content: start; min-height: 350px; }
+.trajectory-lesson__purpose { margin: 0; padding: 9px; border-left: 3px solid var(--teal); background: #edf6f3; font-size: .74rem; line-height: 1.55; }
+.trajectory-lesson__steps { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.trajectory-lesson__steps li { display: grid; gap: 3px; padding: 7px; border: 1px solid var(--rule); font-size: .7rem; }
+.trajectory-lesson__steps li.is-active { border-color: var(--teal); background: var(--teal-soft); }
+.trajectory-lesson__steps span { color: var(--muted); }
+.trajectory-lesson .formula-card { min-width: 0; }
+.trajectory-lesson .formula-card__panel { overflow-x: auto; }
+.trajectory-lesson .katex-display { margin: .65em 0; font-size: .82em; }
+.trajectory-derivation { padding: 9px; border: 1px solid var(--rule); background: #fffdf8; font-size: .72rem; }
+.trajectory-derivation summary { cursor: pointer; font-weight: 700; }
+.trajectory-teaching-note { margin: 0; padding: 9px; border-left: 3px solid var(--amber); background: var(--amber-soft); font-size: .72rem; line-height: 1.55; }
+.trapezoidal-phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.trapezoidal-phases span { padding: 6px 3px; border: 1px solid var(--rule); font-size: .62rem; text-align: center; }
+.trapezoidal-phases span.is-active { color: #fff; background: var(--teal); }
+
+.trajectory-chart-placeholder { min-height: 190px; padding: 12px; color: var(--muted); background: #fffdf8; }
+.trajectory-chart-placeholder h3 { color: var(--ink); }
+.trajectory-chart-placeholder p:last-child { font-size: .78rem; }
+.trajectory-charts__toolbar { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.trajectory-charts__toolbar p { margin-bottom: 3px; }
+.trajectory-chart-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--ink); }
+.trajectory-chart-tabs button { min-height: 36px; padding: 5px 9px; border: 0; border-right: 1px solid var(--rule); color: var(--ink); background: transparent; cursor: pointer; font-size: .7rem; }
+.trajectory-chart-tabs button:last-child { border-right: 0; }
+.trajectory-chart-tabs button[aria-selected="true"] { color: #fff; background: var(--ink); }
+.trajectory-charts__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 10px; }
+.trajectory-chart-card { position: relative; min-width: 0; border: 1px solid var(--rule); }
+.trajectory-chart-card .js-plotly-plot { width: 100%; min-width: 0; }
+.trajectory-chart-actions { position: absolute; z-index: 2; top: 8px; right: 8px; display: flex; gap: 4px; }
+.trajectory-chart-actions button { min-height: 30px; padding: 3px 7px; border: 1px solid var(--ink); color: #fff; background: var(--ink); cursor: pointer; font-size: .65rem; }
+
+@media (max-width: 1250px) {
+  .trajectory-workbench { grid-template-columns: minmax(500px, 1.45fr) minmax(285px, .8fr); }
+  .trajectory-workbench__controls { border-right: 0 !important; }
+  .trajectory-workbench__analysis { grid-column: 1 / -1; border-top: 1px solid var(--rule); }
+}
+
 @media (max-width: 1100px) {
   .lab-shell { padding-inline: 20px; }
   .lab-navigation { overflow-x: auto; grid-template-columns: repeat(4, minmax(170px, 1fr)); }
@@ -345,6 +534,12 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
   .scene-placeholder { min-height: 380px; }
   .robot-scene { min-height: 380px; }
   .time-series__grid { grid-template-columns: 1fr; }
+  .trajectory-workbench { grid-template-columns: 1fr; }
+  .trajectory-workbench > section { grid-column: 1; border-right: 0; border-bottom: 1px solid var(--rule); }
+  .trajectory-workbench > section:last-child { border-bottom: 0; }
+  .trajectory-workbench__scene .robot-scene__viewport,
+  .trajectory-workbench__scene .robot-scene__viewport canvas { min-height: 500px; }
+  .trajectory-charts__grid { grid-template-columns: 1fr; }
   .kinematics-parameter-summary dl,
   .kinematics-workspace[data-mode="jacobian"] .kinematics-parameter-summary dl { grid-template-columns: 1fr 1fr; }
   .kinematics-parameter-summary dl > div { padding: 2px 14px; border-right: 1px solid var(--rule); }
@@ -364,6 +559,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
   .kinematics-workspace:not([data-mobile-pane="controls"]) .kinematics-parameter-editor { display: none; }
   .kinematics-stage__scene { border-right: 0; }
   .kinematics-stage__scene > div { position: static; }
+  .kinematics-workspace[data-mode="inverse"] .analysis-stack { height: auto; }
+  .kinematics-workspace[data-mode="inverse"] .kinematics-walkthrough { height: auto; max-height: none; }
+  .kinematics-workspace[data-mode="inverse"] .walkthrough-body { overflow-y: visible; }
   .kinematics-stage__scene .robot-scene__viewport,
   .kinematics-stage__scene .robot-scene__viewport canvas { min-height: 500px; }
 }
@@ -375,6 +573,18 @@ button:focus-visible, input:focus-visible { outline: 3px solid #e1a13d; outline-
   .module-heading .status-banner { grid-column: 1 / -1; }
   .model-controls .field-grid { grid-template-columns: 1fr; }
   .playback-controls { grid-template-columns: 1fr 1fr; }
+  .trajectory-scene-toolbar { align-items: stretch; flex-direction: column; }
+  .trajectory-scene-toolbar > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }
+  .trajectory-workbench__scene .robot-scene__viewport,
+  .trajectory-workbench__scene .robot-scene__viewport canvas { min-height: 430px; }
+  .trajectory-playback__controls { grid-template-columns: 1fr 1fr; }
+  .trajectory-playback__controls label { grid-column: 1 / -1; }
+  .trajectory-timeline { grid-template-columns: 1fr !important; }
+  .trajectory-timeline output { text-align: left; }
+  .trajectory-charts__toolbar { align-items: stretch; flex-direction: column; }
+  .ptp-settings { grid-template-columns: 1fr; }
+  .teach-point-list li { grid-template-columns: 60px minmax(0, 1fr); }
+  .teach-point-list li > div { grid-column: 1 / -1; }
   .kinematics-parameter-summary { grid-template-columns: 1fr; }
   .kinematics-mode-switcher button { min-height: 62px; padding: 7px; text-align: center; }
   .kinematics-mode-switcher span { white-space: normal; }

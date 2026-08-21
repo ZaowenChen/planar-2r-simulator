@@ -28,3 +28,27 @@ export function simulationSamplesToCsv(samples: readonly SimulationSample[]): st
   const rows = samples.map((sample) => valuesForSample(sample).join(','))
   return `\ufeff${[CSV_COLUMNS.join(','), ...rows].join('\n')}\n`
 }
+
+export interface TrajectoryCsvSample {
+  time: number
+  q: readonly number[]
+  qd: readonly number[]
+  qdd: readonly number[]
+}
+
+const TRAJECTORY_CSV_COLUMNS = [
+  'time_s',
+  'theta_1_rad', 'theta_2_rad', 'theta_3_rad',
+  'omega_1_rad_s', 'omega_2_rad_s', 'omega_3_rad_s',
+  'alpha_1_rad_s2', 'alpha_2_rad_s2', 'alpha_3_rad_s2',
+] as const
+
+export function trajectorySamplesToCsv(samples: readonly TrajectoryCsvSample[]): string {
+  const rows = samples.map((sample) => [
+    sample.time,
+    ...sample.q,
+    ...sample.qd,
+    ...sample.qdd,
+  ].join(','))
+  return `\ufeff${[TRAJECTORY_CSV_COLUMNS.join(','), ...rows].join('\n')}\n`
+}

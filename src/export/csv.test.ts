@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SimulationSample } from '../robotics/integration'
-import { simulationSamplesToCsv } from './csv'
+import { simulationSamplesToCsv, trajectorySamplesToCsv } from './csv'
 
 describe('simulationSamplesToCsv', () => {
   it('exports every simulation quantity with explicit SI units and a UTF-8 BOM', () => {
@@ -37,5 +37,27 @@ describe('simulationSamplesToCsv', () => {
 
     expect(csv.startsWith('\ufefftime_s,theta_1_rad')).toBe(true)
     expect(csv.trim().split('\n')).toHaveLength(1)
+  })
+})
+
+describe('trajectorySamplesToCsv', () => {
+  it('exports only time and joint trajectory state with explicit SI units', () => {
+    const csv = trajectorySamplesToCsv([{
+      time: 0.5,
+      q: [0.1, 0.2, 0.3],
+      qd: [1, 2, 3],
+      qdd: [4, 5, 6],
+    }])
+    const [header, row] = csv.slice(1).trim().split('\n')
+
+    expect(header).toBe([
+      'time_s',
+      'theta_1_rad', 'theta_2_rad', 'theta_3_rad',
+      'omega_1_rad_s', 'omega_2_rad_s', 'omega_3_rad_s',
+      'alpha_1_rad_s2', 'alpha_2_rad_s2', 'alpha_3_rad_s2',
+    ].join(','))
+    expect(row).toBe('0.5,0.1,0.2,0.3,1,2,3,4,5,6')
+    expect(header).not.toContain('tau')
+    expect(header).not.toContain('energy')
   })
 })

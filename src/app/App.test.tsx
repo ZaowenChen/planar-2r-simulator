@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { calculationSnapshotCsv } from '../symbols/display'
 import { useLabStore } from '../state/labStore'
+import { useTrajectoryStore } from '../features/trajectory/trajectoryStore'
 import { App } from './App'
 
 vi.mock('@react-three/fiber', async () => {
@@ -11,15 +12,18 @@ vi.mock('@react-three/fiber', async () => {
 })
 
 afterEach(cleanup)
-beforeEach(() => useLabStore.getState().resetLab())
+beforeEach(() => {
+  useLabStore.getState().resetLab()
+  useTrajectoryStore.getState().reset(useLabStore.getState().jointState.q)
+})
 
 describe('App', () => {
   it('names the laboratory and exposes its four learning modules', () => {
     render(<App />)
     expect(screen.getByText('空间 3R 机器人学交互实验室')).toBeInTheDocument()
-    expect(screen.getByText(/运动学显示 mm \/ °/)).toBeInTheDocument()
+    expect(screen.getByText(/教学界面显示 mm \/ °/)).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('内部角度使用弧度')
-    for (const label of ['机器人模型', '运动学', '动力学', '动态实验']) {
+    for (const label of ['机器人模型', '运动学', '动力学', '轨迹示教']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
   })
@@ -29,7 +33,7 @@ describe('App', () => {
     render(<App />)
     let renderedText = ''
 
-    for (const label of ['机器人模型', '运动学', '动力学', '动态实验']) {
+    for (const label of ['机器人模型', '运动学', '动力学', '轨迹示教']) {
       await user.click(screen.getByRole('button', { name: label }))
       renderedText += document.body.textContent ?? ''
     }

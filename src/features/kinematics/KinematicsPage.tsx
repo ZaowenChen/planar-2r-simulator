@@ -117,10 +117,10 @@ export function KinematicsPage() {
     setParametersExpanded(false)
   }
 
-  const applyInverseAndOpenForward = () => {
+  const applyInverseSolution = () => {
     if (activeInverseSolution === undefined) return
     setJointVector(activeInverseSolution.solution.q)
-    dispatchTeaching({ type: 'step', value: 4 })
+    dispatchTeaching({ type: 'step', value: 14 })
     dispatchTeaching({ type: 'mobile-pane', value: 'analysis' })
     setParametersExpanded(false)
   }
@@ -185,10 +185,10 @@ export function KinematicsPage() {
           {teaching.mode === 'inverse' && (
             <button
               disabled={activeInverseSolution === undefined}
-              onClick={applyInverseAndOpenForward}
+              onClick={applyInverseSolution}
               type="button"
             >
-              应用当前逆解并进入 FK 验证
+              应用当前逆解并查看 FK 验证
             </button>
           )}
           <button
@@ -305,6 +305,7 @@ export function KinematicsPage() {
           <div className="analysis-stack">
             <KinematicsWalkthrough
               activeConfigurationId={teaching.activeConfigurationId}
+              canApplyInverse={activeInverseSolution !== undefined}
               dhOperation={teaching.dhOperation}
               onCameraPresetChange={(value) => dispatchTeaching({ type: 'camera-preset', value })}
               onConfigurationChange={(value) => dispatchTeaching({ type: 'configuration', value })}
@@ -313,6 +314,7 @@ export function KinematicsPage() {
               onStepChange={(value) => dispatchTeaching({ type: 'step', value })}
               onSymbolFocus={(value) => dispatchTeaching({ type: 'symbol-focus', value })}
               onJacobianColumnChange={(value) => dispatchTeaching({ type: 'jacobian-column', value })}
+              onApplyInverse={applyInverseSolution}
               mode={teaching.mode}
               parameters={parameters}
               q={jointState.q}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BlockMath } from 'react-katex'
 import { MatrixTable } from '../../components/MatrixTable'
 import { StatusBanner } from '../../components/StatusBanner'
@@ -45,6 +45,8 @@ interface KinematicsWalkthroughProps {
   onCameraPresetChange: (preset: KinematicsCameraPreset) => void
   selectedJacobianColumn: 0 | 1 | 2
   onJacobianColumnChange: (column: 0 | 1 | 2) => void
+  canApplyInverse: boolean
+  onApplyInverse: () => void
 }
 
 const STEPS = [
@@ -54,15 +56,15 @@ const STEPS = [
   { method: '正运动学 · D–H 矩阵法', title: '连乘得到基座到末端的变换' },
   { method: '正运动学 · D–H 矩阵法', title: '从变换矩阵提取末端位置' },
   { method: '正运动学 · D–H 矩阵法', title: '提取末端姿态' },
-  { method: '逆运动学 · 解析几何法', title: '投影目标到工作平面' },
+  { method: '逆运动学 · 解析几何法', title: '设置目标' },
   { method: '逆运动学 · 解析几何法', title: '用直角三角形计算肩部到目标距离' },
-  { method: '逆运动学 · 解析几何法', title: '先判断目标是否几何可达' },
+  { method: '逆运动学 · 解析几何法', title: '判断可达' },
   { method: '逆运动学 · 解析几何法', title: '用余弦定理求肘角' },
   { method: '逆运动学 · 解析几何法', title: '求肩部指向目标的方向角' },
   { method: '逆运动学 · 解析几何法', title: '求连杆三角形补偿角' },
-  { method: '逆运动学 · 解析几何法', title: '由 γ − δ 得到肩关节角' },
-  { method: '逆运动学 · 解析几何法', title: '把折叠径向作为扩展构型' },
-  { method: '验证 · 正运动学回代', title: '把解析解代回正运动学' },
+  { method: '逆运动学 · 解析几何法', title: '求关节角' },
+  { method: '逆运动学 · 构型比较', title: '选择构型' },
+  { method: '验证 · 正运动学回代', title: 'FK 回代验证' },
   { method: '验证 · 正运动学回代', title: '比较每组位置逆解的实际姿态' },
   { method: '微分运动学 · 几何雅可比', title: '读取当前关节运动状态' },
   { method: '微分运动学 · 几何雅可比', title: '用关节轴逐列构造雅可比' },
@@ -72,7 +74,7 @@ const STEPS = [
 
 const MODE_STEP_LABELS: Record<KinematicsMode, readonly string[]> = {
   forward: ['机构与轴', 'D–H 建系', '相邻变换', '变换连乘', '末端位置', '末端姿态'],
-  inverse: ['工作平面', '距离 s', '可达性', '肘角 θ₃', '方向角 γ', '补偿角 δ', '肩角 θ₂', '构型比较', '位置回代', '姿态结果'],
+  inverse: ['设置目标', '判断可达', '求关节角', '选择构型', 'FK 回代验证'],
   jacobian: ['运动状态', '逐列构造', '末端速度', '位置奇异性'],
 }
 
@@ -89,7 +91,7 @@ const STEP_SYMBOLS: readonly (readonly KinematicsSymbol[])[] = [
   ['theta3', 'l2', 'l3'],
   ['gamma'],
   ['delta', 'l2', 'l3'],
-  ['theta2', 'gamma', 'delta'],
+  ['theta2', 'theta3', 'gamma', 'delta'],
   ['r'],
   [],
   ['beta'],
@@ -143,6 +145,62 @@ function StepSection({ title, children }: React.PropsWithChildren<{ title: strin
   )
 }
 
+function IkStageField({
+  children,
+  label,
+  tone = 'neutral',
+}: React.PropsWithChildren<{
+  label: '说明' | '公式' | '数值代入' | '结果'
+  tone?: 'neutral' | 'result'
+}>) {
+  return (
+    <section className={`ik-stage-field ik-stage-field--${tone}`}>
+      <p className="ik-stage-field__label">{label}</p>
+      <div>{children}</div>
+    </section>
+  )
+}
+
+function IkCalculationCard({
+  formula,
+  index,
+  result,
+  substitution,
+  title,
+  value,
+}: {
+  formula: React.ReactNode
+  index: number
+  result?: React.ReactNode
+  substitution: React.ReactNode
+  title: string
+  value?: string
+}) {
+  return (
+    <section className="ik-calculation-card" data-testid={`ik-calculation-card-${index}`}>
+      <header>
+        <span>{String(index).padStart(2, '0')}</span>
+        <h4>{title}</h4>
+        {value !== undefined && <output>{value}</output>}
+      </header>
+      <div>
+        <p>公式</p>
+        {formula}
+      </div>
+      <div>
+        <p>数值代入</p>
+        {substitution}
+      </div>
+      {result !== undefined && (
+        <div className="ik-calculation-card__result">
+          <p>结果</p>
+          {result}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function KinematicsWalkthrough({
   q,
   qd,
@@ -164,11 +222,33 @@ export function KinematicsWalkthrough({
   onCameraPresetChange,
   selectedJacobianColumn,
   onJacobianColumnChange,
+  canApplyInverse,
+  onApplyInverse,
 }: KinematicsWalkthroughProps) {
+  const [calculationExpanded, setCalculationExpanded] = useState(false)
+  const calculationDisclosureRef = useRef<HTMLButtonElement>(null)
+  const walkthroughBodyRef = useRef<HTMLDivElement>(null)
   const model = useMemo(
     () => buildKinematicsDerivation(q, parameters, target, qd),
     [parameters, q, qd, target],
   )
+
+  useEffect(() => {
+    if (mode !== 'inverse' || stepIndex !== 12) setCalculationExpanded(false)
+    if (walkthroughBodyRef.current !== null) walkthroughBodyRef.current.scrollTop = 0
+  }, [mode, stepIndex])
+
+  useEffect(() => {
+    const body = walkthroughBodyRef.current
+    const disclosure = calculationDisclosureRef.current
+    if (!calculationExpanded || body === null || disclosure === null) return
+    const bodyRect = body.getBoundingClientRect()
+    const disclosureRect = disclosure.getBoundingClientRect()
+    body.scrollTop = Math.max(
+      0,
+      body.scrollTop + disclosureRect.top - bodyRect.top - 12,
+    )
+  }, [calculationExpanded])
 
   const d1Mm = metresToMillimetres(parameters.geometry.d1)
   const l2Mm = metresToMillimetres(parameters.geometry.l2)
@@ -229,6 +309,311 @@ export function KinematicsWalkthrough({
     String.raw`\boxed{\mathbf A_2=R_z(\theta_2)T_x(l_2)}`,
     String.raw`\boxed{\mathbf A_3=R_z(\theta_3)T_x(l_3)}`,
   ][selectedDhRow]
+
+  const selectedElbowBranch = configurationBranch(activeConfigurationId)
+  const selectedConventionalDetail = model.inverse.conventionalBranches.find((detail) => (
+    detail.solution.branch === selectedElbowBranch
+  )) ?? model.inverse.conventionalBranches[0]
+  const alternateConventionalDetail = model.inverse.conventionalBranches.find((detail) => (
+    detail.solution.branch !== selectedConventionalDetail?.solution.branch
+  ))
+  const selectedCandidateDetail = model.inverse.candidateDetails.find((detail) => (
+    configurationId(detail.solution) === activeConfigurationId
+  )) ?? selectedConventionalDetail
+  const selectedSolutionDetail = model.inverse.solutionDetails.find((detail) => (
+    configurationId(detail.solution) === activeConfigurationId
+  ))
+  const isApplicableSolution = (id: KinematicsConfigurationId) => (
+    model.inverse.solutionDetails.some((detail) => configurationId(detail.solution) === id)
+  )
+  const inverseStatusTone = inverseStatus === 'unreachable'
+    ? 'error' as const
+    : inverseStatus === 'joint-limit' || inverseStatus === 'axis-singular'
+      ? 'warning' as const
+      : 'success' as const
+  const inverseStatusTitle = inverseStatus === 'unreachable'
+    ? '目标不可达'
+    : inverseStatus === 'joint-limit'
+      ? '几何可达，但超出关节限位'
+      : inverseStatus === 'axis-singular'
+        ? '目标可达，但基座轴奇异'
+        : '目标可达'
+  const selectedPositionError = selectedCandidateDetail?.positionErrorMm
+  const verificationTone = selectedCandidateDetail === undefined
+    ? inverseStatusTone
+    : selectedSolutionDetail === undefined || inverseStatus === 'axis-singular'
+      ? 'warning' as const
+      : 'success' as const
+  const verificationTitle = selectedCandidateDetail === undefined
+    ? inverseStatusTitle
+    : selectedSolutionDetail === undefined
+      ? inverseStatus === 'joint-limit'
+        ? '几何回代通过，但受关节限位阻止'
+        : '几何回代通过，但当前候选不可应用'
+      : inverseStatus === 'axis-singular'
+        ? 'FK 回代完成，基座角采用约定值'
+        : 'FK 回代完成'
+
+  const inverseStageContent = [
+    <>
+      <IkStageField label="说明">
+        <p>先绕基座轴确定方位，再把三维目标化到肩—肘—目标所在的二维工作平面。</p>
+      </IkStageField>
+      <IkStageField label="公式">
+        <BlockMath math={String.raw`r=\sqrt{x^2+y^2},\qquad h=z-d_1,\qquad\theta_1=\operatorname{atan2}(y,x)`} />
+      </IkStageField>
+      <IkStageField label="数值代入">
+        <BlockMath math={String.raw`(x,y,z)=${vectorLatex(model.inverse.targetMm, 1)}\ \mathrm{mm}`} />
+        <BlockMath math={String.raw`r=${format(model.inverse.radialMm, 1)}\ \mathrm{mm},\quad h=${format(model.inverse.verticalMm, 1)}\ \mathrm{mm}`} />
+      </IkStageField>
+      <IkStageField label="结果" tone="result">
+        <strong>θ₁ = {format(model.inverse.baseAngleDegrees, 2)}°</strong>
+        <p>工作平面目标坐标为（r, h）=（{format(model.inverse.radialMm, 1)}, {format(model.inverse.verticalMm, 1)}）mm。</p>
+      </IkStageField>
+      <details className="ik-advanced">
+        <summary>Advanced · 查看二维工作平面</summary>
+        {geometryDiagram('projection')}
+      </details>
+    </>,
+    <>
+      <IkStageField label="说明">
+        <p>先求肩部到目标的距离 s，再检查两根连杆是否能组成三角形；关节限位在几何可达之后单独判断。</p>
+      </IkStageField>
+      <IkStageField label="公式">
+        <BlockMath math={String.raw`s=\sqrt{r^2+h^2},\qquad |l_2-l_3|\le s\le l_2+l_3`} />
+      </IkStageField>
+      <IkStageField label="数值代入">
+        <BlockMath math={String.raw`s=\sqrt{${format(model.inverse.radialMm, 1)}^2+${format(model.inverse.verticalMm, 1)}^2}=${format(model.inverse.pythagoreanDistanceMm, 1)}\ \mathrm{mm}`} />
+        <BlockMath math={String.raw`${format(model.inverse.reachability.minimumMm, 1)}\le ${format(model.inverse.pythagoreanDistanceMm, 1)}\le ${format(model.inverse.reachability.maximumMm, 1)}\ \mathrm{mm}`} />
+      </IkStageField>
+      <IkStageField label="结果" tone="result">
+        <StatusBanner tone={inverseStatusTone} title={inverseStatusTitle}>
+          {inverseStatusText}
+        </StatusBanner>
+      </IkStageField>
+      <details className="ik-advanced">
+        <summary>Advanced · 查看连杆三角形</summary>
+        {geometryDiagram('distance')}
+      </details>
+    </>,
+    <>
+      <IkStageField label="说明">
+        <p>按 θ₃ → γ → δ → θ₂ 的顺序计算。默认只显示核心链路，需要时再展开每个中间量。</p>
+      </IkStageField>
+      <IkStageField label="公式">
+        <BlockMath math={String.raw`\theta_3=\pm\arccos(D),\qquad\theta_2=\gamma-\operatorname{atan2}(l_3\sin\theta_3,l_2+l_3\cos\theta_3)`} />
+      </IkStageField>
+      <IkStageField label="数值代入">
+        <BlockMath math={String.raw`D=\frac{${format(model.inverse.pythagoreanDistanceMm, 1)}^2-${format(l2Mm, 1)}^2-${format(l3Mm, 1)}^2}{2\times${format(l2Mm, 1)}\times${format(l3Mm, 1)}}=${format(model.inverse.cosineElbow, 4)}`} />
+      </IkStageField>
+      <IkStageField label="结果" tone="result">
+        {model.inverse.conventionalBranches.length > 0 ? (
+          <div className="ik-compact-results">
+            {model.inverse.conventionalBranches.map((detail) => (
+              <span key={detail.solution.branch}>
+                <strong>{configurationLabel(detail.solution)}</strong>
+                θ₂ = {format(detail.qDegrees[1], 2)}° · θ₃ = {format(detail.qDegrees[2], 2)}°
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p>当前 D 不在 [−1, 1] 内，因此不存在实数关节角解。</p>
+        )}
+      </IkStageField>
+      <button
+        aria-controls="ik-calculation-process"
+        aria-expanded={calculationExpanded}
+        className="ik-calculation-disclosure"
+        onClick={() => setCalculationExpanded((expanded) => !expanded)}
+        ref={calculationDisclosureRef}
+        type="button"
+      >
+        <span>
+          <strong>{calculationExpanded ? '收起计算过程' : '查看完整计算过程'}</strong>
+          <small>{calculationExpanded ? '正在查看 · 4/4' : '4 个子计算'}</small>
+        </span>
+        <span aria-hidden="true">{calculationExpanded ? '⌃' : '⌄'}</span>
+      </button>
+      {calculationExpanded && (
+        <section aria-label="完整计算过程" className="ik-calculation-process" id="ik-calculation-process">
+          <header>
+            <h4>计算过程</h4>
+            <span>{selectedConventionalDetail === undefined ? '当前目标无实数解' : `${configurationLabel(selectedConventionalDetail.solution)}候选`}</span>
+          </header>
+          <IkCalculationCard
+            formula={<BlockMath math={String.raw`D=\frac{s^2-l_2^2-l_3^2}{2l_2l_3},\qquad\theta_3=\pm\arccos(D)`} />}
+            index={1}
+            result={selectedConventionalDetail === undefined
+              ? <p>|D| &gt; 1，θ₃ 没有实数结果。</p>
+              : <BlockMath math={String.raw`\theta_3=${format(selectedConventionalDetail.qDegrees[2], 2)}^\circ,\quad\theta_3'=${format(alternateConventionalDetail?.qDegrees[2] ?? Number.NaN, 2)}^\circ`} />}
+            substitution={<BlockMath math={String.raw`D=\frac{${format(model.inverse.pythagoreanDistanceMm, 1)}^2-${format(l2Mm, 1)}^2-${format(l3Mm, 1)}^2}{2\times${format(l2Mm, 1)}\times${format(l3Mm, 1)}}=${format(model.inverse.cosineElbow, 4)}`} />}
+            title="肘角 θ₃"
+            value={selectedConventionalDetail === undefined ? '无实数解' : `±${format(Math.abs(selectedConventionalDetail.qDegrees[2]), 2)}°`}
+          />
+          <IkCalculationCard
+            formula={<BlockMath math={String.raw`\gamma=\operatorname{atan2}(h,r)`} />}
+            index={2}
+            result={<p>{selectedConventionalDetail === undefined ? '等待有效肘角。' : `γ = ${format(selectedConventionalDetail.targetDirectionDegrees, 2)}°`}</p>}
+            substitution={<BlockMath math={String.raw`\gamma=\operatorname{atan2}(${format(model.inverse.verticalMm, 1)},${format(model.inverse.radialMm, 1)})${selectedConventionalDetail === undefined ? '' : `=${format(selectedConventionalDetail.targetDirectionDegrees, 2)}^\circ`}`} />}
+            title="方向角 γ"
+            value={selectedConventionalDetail === undefined ? '—' : `${format(selectedConventionalDetail.targetDirectionDegrees, 2)}°`}
+          />
+          <IkCalculationCard
+            formula={<BlockMath math={String.raw`k_1=l_2+l_3\cos\theta_3,\quad k_2=l_3\sin\theta_3,\quad\delta=\operatorname{atan2}(k_2,k_1)`} />}
+            index={3}
+            result={<p>{selectedConventionalDetail === undefined ? '等待有效肘角。' : `δ = ${format(selectedConventionalDetail.triangleCorrectionDegrees, 2)}°`}</p>}
+            substitution={selectedConventionalDetail === undefined
+              ? <p>当前没有可代入的 θ₃。</p>
+              : <BlockMath math={String.raw`k_1=${format(selectedConventionalDetail.triangleProjectionMm, 1)}\ \mathrm{mm},\quad k_2=${format(selectedConventionalDetail.triangleHeightMm, 1)}\ \mathrm{mm}`} />}
+            title="补偿角 δ"
+            value={selectedConventionalDetail === undefined ? '—' : `${format(selectedConventionalDetail.triangleCorrectionDegrees, 2)}°`}
+          />
+          <IkCalculationCard
+            formula={<BlockMath math={String.raw`\theta_2=\gamma-\delta`} />}
+            index={4}
+            result={selectedConventionalDetail === undefined
+              ? <p>当前目标没有可用的肩角结果。</p>
+              : (
+                <>
+                  <BlockMath math={String.raw`\mathbf q_{\mathrm{IK}}=${vectorLatex(selectedConventionalDetail.qDegrees, 2)}\ ^\circ`} />
+                  {alternateConventionalDetail !== undefined && (
+                    <p>另一支候选：θ₂ = {format(alternateConventionalDetail.qDegrees[1], 2)}°，θ₃ = {format(alternateConventionalDetail.qDegrees[2], 2)}°。</p>
+                  )}
+                </>
+              )}
+            substitution={selectedConventionalDetail === undefined
+              ? <p>等待 γ 与 δ。</p>
+              : <BlockMath math={String.raw`\theta_2=${format(selectedConventionalDetail.targetDirectionDegrees, 2)}^\circ-${format(selectedConventionalDetail.triangleCorrectionDegrees, 2)}^\circ=${format(selectedConventionalDetail.qDegrees[1], 2)}^\circ`} />}
+            title="肩角 θ₂"
+            value={selectedConventionalDetail === undefined ? '—' : `${format(selectedConventionalDetail.qDegrees[1], 2)}°`}
+          />
+        </section>
+      )}
+      <details className="ik-advanced">
+        <summary>Advanced · 查看角度几何关系</summary>
+        {model.inverse.conventionalBranches.length > 0
+          ? geometryDiagram('solution')
+          : <p>目标不可达时没有可绘制的连杆角度。</p>}
+      </details>
+    </>,
+    <>
+      <IkStageField label="说明">
+        <p>肘上和肘下到达同一目标位置，但肘点位于肩—目标连线两侧，末端连杆仰角 β 也可能不同。</p>
+      </IkStageField>
+      <IkStageField label="公式">
+        <BlockMath math={String.raw`\mathbf q_{\mathrm{IK}}^{(i)}=\begin{bmatrix}\theta_1&\theta_2&\theta_3\end{bmatrix}^{\mathsf T},\qquad\beta^{(i)}=\theta_2^{(i)}+\theta_3^{(i)}`} />
+      </IkStageField>
+      <IkStageField label="数值代入">
+        {model.inverse.conventionalBranches.length > 0 ? (
+          <div aria-label="肘上肘下构型选择" className="ik-solution-grid" role="group">
+            {model.inverse.conventionalBranches.map((detail) => {
+              const id = configurationId(detail.solution)
+              const applicable = isApplicableSolution(id)
+              return (
+                <button
+                  aria-pressed={activeConfigurationId === id}
+                  className="ik-solution-card"
+                  key={id}
+                  onClick={() => onConfigurationChange(id)}
+                  type="button"
+                >
+                  <span className="ik-solution-card__heading">
+                    <strong>{configurationLabel(detail.solution)}</strong>
+                    <small>{applicable ? '可应用' : '仅教学图示'}</small>
+                  </span>
+                  <span>θ₂ {format(detail.qDegrees[1], 2)}°</span>
+                  <span>θ₃ {format(detail.qDegrees[2], 2)}°</span>
+                  <span>β {format(detail.toolElevationDegrees, 2)}°</span>
+                  <em>{detail.solution.branch === 'elbow-up' ? '肘部位于 SP 上侧' : '肘部位于 SP 下侧'}</em>
+                </button>
+              )
+            })}
+          </div>
+        ) : <p>当前目标没有可比较的肘部构型。</p>}
+      </IkStageField>
+      <IkStageField label="结果" tone="result">
+        {selectedCandidateDetail === undefined ? (
+          <p>请先返回“设置目标”并选择可达位置。</p>
+        ) : (
+          <>
+            <strong>当前预览：{configurationLabel(selectedCandidateDetail.solution)} · {radialFamilyLabel(selectedCandidateDetail.solution)}</strong>
+            <p>β = {format(selectedCandidateDetail.toolElevationDegrees, 2)}°；{selectedSolutionDetail === undefined ? '该候选不能写入当前关节限位。' : '该候选可应用到机器人。'}</p>
+          </>
+        )}
+      </IkStageField>
+      <details className="ik-advanced">
+        <summary>Advanced · 折叠径向与全部候选</summary>
+        <p>折叠径向会让基座反向，再由平面二连杆折叠到目标；它与肘上/肘下是两个独立分类维度。</p>
+        <div aria-label="全部解析几何候选" className="configuration-candidates" role="group">
+          {model.inverse.candidateDetails.map((detail) => {
+            const id = configurationId(detail.solution)
+            return (
+              <button
+                aria-pressed={activeConfigurationId === id}
+                key={id}
+                onClick={() => onConfigurationChange(id)}
+                type="button"
+              >
+                <strong>{configurationLabel(detail.solution)} · {radialFamilyLabel(detail.solution)}</strong>
+                <span>{isApplicableSolution(id) ? '当前可应用' : '仅教学图示'}</span>
+              </button>
+            )
+          })}
+        </div>
+      </details>
+    </>,
+    <>
+      <IkStageField label="说明">
+        <p>把当前逆解写回正运动学，逐项比较目标位置、回代位置与位置残差。</p>
+      </IkStageField>
+      <IkStageField label="公式">
+        <BlockMath math={String.raw`\mathbf q_{\mathrm{IK}}\rightarrow{}^0\mathbf T_{3,\mathrm{FK}}\rightarrow\mathbf p_{\mathrm{FK}},\qquad\Delta\mathbf p=\mathbf p_{\mathrm{FK}}-\mathbf p_d,\quad e_p=\lVert\Delta\mathbf p\rVert_2`} />
+      </IkStageField>
+      <IkStageField label="数值代入">
+        {selectedCandidateDetail === undefined ? <p>当前没有可回代的解析候选。</p> : (
+          <>
+            <BlockMath math={String.raw`\mathbf p_d=${vectorLatex(model.inverse.targetMm, 2)}\ \mathrm{mm}`} />
+            <BlockMath math={String.raw`\mathbf p_{\mathrm{FK}}=${vectorLatex(selectedCandidateDetail.achievedPositionMm, 2)}\ \mathrm{mm}`} />
+            <BlockMath math={String.raw`\Delta\mathbf p=${vectorLatex(selectedCandidateDetail.positionResidualMm, 4)}\ \mathrm{mm}`} />
+          </>
+        )}
+      </IkStageField>
+      <IkStageField label="结果" tone="result">
+        <StatusBanner
+          tone={verificationTone}
+          title={verificationTitle}
+        >
+          {selectedPositionError === undefined
+            ? inverseStatusText
+            : `当前候选的位置误差 eₚ = ${selectedPositionError.toExponential(3)} mm。`}
+        </StatusBanner>
+      </IkStageField>
+      <details className="ik-advanced">
+        <summary>Advanced · 完整回代与姿态矩阵</summary>
+        {model.inverse.solutionDetails.length > 0 ? (
+          <>
+            <VerificationSummary
+              solutions={model.inverse.solutionDetails}
+              targetMm={model.inverse.targetMm}
+            />
+            <div className="ik-orientation-matrices">
+              {model.inverse.solutionDetails.map((detail) => (
+                <div key={configurationId(detail.solution)}>
+                  <p>{configurationLabel(detail.solution)}：β = {format(detail.toolElevationDegrees, 2)}°</p>
+                  <MatrixTable
+                    label={`${configurationLabel(detail.solution)}末端姿态`}
+                    matrix={detail.orientation}
+                    precision={4}
+                    symbol="{}^0\mathbf R_3"
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : <p>当前没有满足关节限位的可应用解。</p>}
+      </details>
+    </>,
+  ]
 
   const stepContent = [
     <>
@@ -569,11 +954,12 @@ export function KinematicsWalkthrough({
         {modeSteps.map((globalStepIndex, index) => (
           <button
             aria-current={globalStepIndex === stepIndex ? 'step' : undefined}
+            data-state={globalStepIndex === stepIndex ? 'current' : index < localStepIndex ? 'completed' : 'upcoming'}
             key={globalStepIndex}
             onClick={() => onStepChange(globalStepIndex)}
             type="button"
           >
-            <span>{index + 1}</span>
+            <span>{index < localStepIndex ? '✓' : index + 1}</span>
             {MODE_STEP_LABELS[mode][index]}
           </button>
         ))}
@@ -593,7 +979,9 @@ export function KinematicsWalkthrough({
           ))}
         </div>
       )}
-      <div className="walkthrough-body" key={stepIndex}>{stepContent[stepIndex]}</div>
+      <div className="walkthrough-body" key={stepIndex} ref={walkthroughBodyRef}>
+        {mode === 'inverse' ? inverseStageContent[localStepIndex] : stepContent[stepIndex]}
+      </div>
       <footer className="walkthrough-actions">
         <button
           disabled={localStepIndex === 0}
@@ -602,13 +990,19 @@ export function KinematicsWalkthrough({
         >
           上一步
         </button>
-        <button
-          disabled={localStepIndex === modeSteps.length - 1}
-          onClick={() => onStepChange(modeSteps[Math.min(modeSteps.length - 1, localStepIndex + 1)])}
-          type="button"
-        >
-          下一步
-        </button>
+        {mode === 'inverse' && localStepIndex === modeSteps.length - 1 ? (
+          <button disabled={!canApplyInverse} onClick={onApplyInverse} type="button">
+            应用逆解
+          </button>
+        ) : (
+          <button
+            disabled={localStepIndex === modeSteps.length - 1}
+            onClick={() => onStepChange(modeSteps[Math.min(modeSteps.length - 1, localStepIndex + 1)])}
+            type="button"
+          >
+            下一步
+          </button>
+        )}
       </footer>
     </article>
   )

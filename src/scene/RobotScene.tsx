@@ -12,6 +12,7 @@ import {
   type SceneModel,
   type SceneOverlayFlags,
   type ScenePresentationModel,
+  type ScenePointModel,
 } from './sceneModel'
 import './robotScene.css'
 
@@ -54,14 +55,15 @@ export interface RobotSceneCalculation {
   forward: ForwardKinematicsResult
   jointState: JointState
   jacobian: Matrix6x3
-  torque: Vector3
-  gravity: Vector3
+  torque?: Vector3
+  gravity?: Vector3
 }
 
 export interface RobotSceneProps {
   calculation: RobotSceneCalculation
   workspaceSamples?: readonly Vector3[]
   trail?: readonly Vector3[]
+  markers?: readonly ScenePointModel[]
   initialOverlays?: Partial<SceneOverlayFlags>
   visibleOverlayControls?: readonly (keyof SceneOverlayFlags)[]
   presentation?: ScenePresentationModel
@@ -198,6 +200,7 @@ export function RobotScene({
   calculation,
   workspaceSamples = [],
   trail = [],
+  markers = [],
   initialOverlays,
   visibleOverlayControls,
   presentation,
@@ -215,8 +218,9 @@ export function RobotScene({
     ...calculation,
     workspaceSamples,
     trail,
+    markers,
     overlays,
-  }), [calculation, overlays, trail, workspaceSamples])
+  }), [calculation, markers, overlays, trail, workspaceSamples])
   const visibleVectors = sceneModel.vectors.filter((vector) => vector.visible)
   const overlayControls = visibleOverlayControls === undefined
     ? OVERLAY_CONTROLS

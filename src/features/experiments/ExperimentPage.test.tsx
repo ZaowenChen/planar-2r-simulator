@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLabStore } from '../../state/labStore'
+import { useTrajectoryStore } from '../trajectory/trajectoryStore'
 import { ExperimentPage } from './ExperimentPage'
 
 vi.mock('@react-three/fiber', async () => {
@@ -14,19 +15,29 @@ vi.mock('@react-three/fiber', async () => {
       const sceneModel = child && React.isValidElement<{ sceneModel?: unknown }>(child)
         ? child.props.sceneModel
         : undefined
-      return <div data-scene-model={JSON.stringify(sceneModel)} data-testid="experiment-canvas" />
+      return <div data-scene-model={JSON.stringify(sceneModel)} data-testid="trajectory-canvas" />
     },
   }
 })
 
 vi.mock('react-plotly.js/factory', () => ({
-  default: () => ({ onClick }: { onClick?: (event: { points: { x: number }[] }) => void }) => (
-    <button onClick={() => onClick?.({ points: [{ x: 0.25 }] })} type="button">曲线采样点 0.25 s</button>
+  default: () => ({
+    onClick,
+    layout,
+  }: {
+    onClick?: (event: { points: { x: number }[] }) => void
+    layout?: { title?: { text?: string } }
+  }) => (
+    <button
+      aria-label={layout?.title?.text ?? '轨迹曲线'}
+      onClick={() => onClick?.({ points: [{ x: 0.25 }] })}
+      type="button"
+    >曲线采样点</button>
   ),
 }))
 
 vi.mock('../../export/download', () => ({
-  downloadSimulationCsv: vi.fn(),
+  downloadTrajectoryCsv: vi.fn(),
   downloadPlotImage: vi.fn(),
 }))
 
@@ -35,16 +46,19 @@ let frames: FrameCallback[]
 
 beforeEach(() => {
   useLabStore.getState().resetLab()
+  useTrajectoryStore.getState().reset(useLabStore.getState().jointState.q)
   frames = []
   vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameCallback) => {
     frames.push(callback)
     return frames.length
   }))
   vi.stubGlobal('cancelAnimationFrame', vi.fn())
+  vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
 
@@ -54,162 +68,101 @@ function runNextFrame(timestamp: number): void {
   act(() => frame(timestamp))
 }
 
-function accessibleMathText(container: HTMLElement): string {
-  return Array.from(container.querySelectorAll('.katex-mathml'))
-    .map((node) => node.textContent ?? '')
-    .join(' ')
-    .replaceAll(/\s+/g, '')
+async function createPreview(profile: 'quintic' | 'trapezoidal' = 'quintic') {
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: '记录当前位置为示教点' }))
+  await user.click(screen.getByRole('button', { name: 'J1 正向点动' }))
+  await user.click(screen.getByRole('button', { name: '记录当前位置为示教点' }))
+  if (profile === 'trapezoidal') {
+    await user.selectOptions(screen.getByLabelText('PTP 轨迹类型'), 'trapezoidal')
+  }
+  await user.click(screen.getByRole('button', { name: '生成轨迹预览' }))
+  return user
 }
 
-describe('ExperimentPage', () => {
-  it('generates inverse-dynamics torque samples and forward-dynamics state samples', async () => {
-    const user = userEvent.setup()
+describe('trajectory teaching ExperimentPage', () => {
+  it('renders a pure-trajectory teach pendant without dynamics controls or quantities', () => {
     render(<ExperimentPage />)
 
-    expect(screen.getByRole('tab', { name: '逆动力学' })).toHaveAttribute('aria-selected', 'true')
-    expect(Number(screen.getByTestId('sample-count').textContent)).toBeGreaterThan(1)
-    expect(screen.getByTestId('current-torque').textContent).toMatch(/N·m/)
+    expect(screen.getByRole('region', { name: '轨迹三维示教视图' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '虚拟示教器' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '轨迹数学讲解' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '轨迹预览图表' })).toBeInTheDocument()
+    expect(screen.getByText('等待 PTP 轨迹')).toBeInTheDocument()
+    expect(screen.queryByText(/逆动力学|正动力学|力矩|能量|功率/)).not.toBeInTheDocument()
+  })
 
-    await user.click(screen.getByRole('tab', { name: '正动力学' }))
-    await user.selectOptions(screen.getByLabelText('力矩输入类型'), 'sine')
-    await user.click(screen.getByRole('button', { name: '生成实验' }))
-
-    expect(useLabStore.getState().experiment.mode).toBe('forward')
-    expect(Number(screen.getByTestId('sample-count').textContent)).toBeGreaterThan(1)
-    expect(screen.getByTestId('current-state').textContent).toContain('rad')
-  }, 15_000)
-
-  it('generates a trapezoidal joint trajectory from the inverse-dynamics editor', async () => {
-    const user = userEvent.setup()
+  it('records copied P1/P2 poses, generates a quintic PTP, and exposes polynomial charts', async () => {
     render(<ExperimentPage />)
+    await createPreview()
 
-    await user.selectOptions(screen.getByLabelText('关节轨迹类型'), 'trapezoidal')
-    expect(screen.getByLabelText('初始角 θ₁')).toBeInTheDocument()
-    expect(screen.getByLabelText('目标角 θ₁')).toBeInTheDocument()
-    expect(screen.queryByLabelText('频率 f₁')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('示教点数量')).toHaveTextContent('2 点')
+    expect(screen.getByLabelText('P1 名称')).toHaveValue('P1')
+    expect(screen.getByLabelText('P2 名称')).toHaveValue('P2')
+    expect(screen.getByText('PTP P1 → P2')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '五次多项式轨迹' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '五次插值公式' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '位置 q' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: '归一化插值 s / s′ / s″' })).toBeInTheDocument()
+    expect(screen.getByText('峰值速度')).toBeInTheDocument()
+  })
 
-    await user.click(screen.getByRole('button', { name: '生成实验' }))
-
-    expect(Number(screen.getByTestId('sample-count').textContent)).toBeGreaterThan(1)
-    expect(screen.getByTestId('current-torque').textContent).toMatch(/N·m/)
-  }, 15_000)
-
-  it('plays, pauses, single-steps, resets, and clicks a chart through one shared time', async () => {
-    const user = userEvent.setup()
+  it('updates a committed trajectory immediately when duration or profile changes', async () => {
     render(<ExperimentPage />)
+    const user = await createPreview()
+    const peakBefore = screen.getByText('峰值速度').parentElement?.textContent
 
-    await user.click(screen.getByRole('button', { name: '播放' }))
-    expect(useLabStore.getState().experiment.isPlaying).toBe(true)
+    await user.clear(screen.getByLabelText('PTP 持续时间'))
+    await user.type(screen.getByLabelText('PTP 持续时间'), '10')
+    expect(screen.getByText('峰值速度').parentElement?.textContent).not.toBe(peakBefore)
+
+    await user.selectOptions(screen.getByLabelText('PTP 轨迹类型'), 'trapezoidal')
+    expect(screen.getByRole('heading', { name: '梯形速度轨迹' })).toBeInTheDocument()
+    expect(screen.getByLabelText('梯形速度阶段')).toBeInTheDocument()
+    expect(screen.getByText(/加速度会从 4\.5 跳到 0/)).toBeInTheDocument()
+  })
+
+  it('plays, pauses, steps, resets, and clicks both charts through one shared time', async () => {
+    render(<ExperimentPage />)
+    const user = await createPreview()
+
+    await user.click(screen.getByRole('button', { name: '试运行' }))
+    expect(useTrajectoryStore.getState().isPlaying).toBe(true)
     runNextFrame(1_000)
     runNextFrame(1_100)
-    expect(useLabStore.getState().simulationTime).toBeCloseTo(0.1, 8)
+    expect(useTrajectoryStore.getState().time).toBeCloseTo(0.1, 6)
 
     await user.click(screen.getByRole('button', { name: '暂停' }))
-    expect(useLabStore.getState().experiment.isPlaying).toBe(false)
-    const pausedTime = useLabStore.getState().simulationTime
+    const paused = useTrajectoryStore.getState().time
     await user.click(screen.getByRole('button', { name: '单步' }))
-    expect(useLabStore.getState().simulationTime).toBeCloseTo(pausedTime + 0.005, 8)
+    expect(useTrajectoryStore.getState().time).toBeGreaterThan(paused)
 
-    await user.click(screen.getAllByRole('button', { name: '曲线采样点 0.25 s' })[0])
-    expect(useLabStore.getState().simulationTime).toBe(0.25)
-    await user.click(screen.getByRole('button', { name: '重置' }))
-    expect(useLabStore.getState().simulationTime).toBe(0)
+    await user.click(screen.getByRole('button', { name: '归一化插值 s / s′ / s″' }))
+    expect(useTrajectoryStore.getState().time).toBeCloseTo(1.25, 8)
+    await user.click(screen.getByRole('button', { name: '复位到 P1' }))
+    expect(useTrajectoryStore.getState().time).toBe(0)
   })
 
-  it('scrubs the scene and live formulas to the same precomputed sample', () => {
+  it('scrubs the 3D scene, formula and graph cursor to the same analytical time', async () => {
     render(<ExperimentPage />)
-    const revisionBefore = Number(screen.getByTestId('experiment-scene').dataset.revision)
+    await createPreview()
 
-    fireEvent.change(screen.getByRole('slider', { name: '仿真时间' }), { target: { value: '0.5' } })
+    fireEvent.change(screen.getByRole('slider', { name: '轨迹时间' }), { target: { value: '2.5' } })
 
-    const scene = screen.getByTestId('experiment-scene')
-    const formula = screen.getByTestId('experiment-formula')
-    expect(useLabStore.getState().simulationTime).toBe(0.5)
-    expect(Number(scene.dataset.revision)).toBeGreaterThan(revisionBefore)
-    expect(scene.dataset.revision).toBe(formula.dataset.revision)
-    expect(scene.dataset.sampleTime).toBe('0.5')
-    expect(formula.dataset.sampleTime).toBe('0.5')
+    expect(useTrajectoryStore.getState().time).toBe(2.5)
+    expect(screen.getByTestId('trajectory-time')).toHaveTextContent('2.500 / 5.000 s')
+    expect(screen.getByText('u = 0.500')).toBeInTheDocument()
+    expect(screen.getByText(/J1 30\.5°/)).toBeInTheDocument()
   })
 
-  it('pauses and preserves the exact structured diagnostic for an invalid simulation', () => {
-    useLabStore.getState().setExperimentMode('forward')
-    useLabStore.getState().setJointVector([Math.PI + 0.1, 0, 0])
-    useLabStore.getState().setPlaying(true)
-
+  it('expands the 3D scene without changing the trajectory time', async () => {
     render(<ExperimentPage />)
+    const user = await createPreview()
+    fireEvent.change(screen.getByRole('slider', { name: '轨迹时间' }), { target: { value: '1.5' } })
 
-    expect(useLabStore.getState().experiment.isPlaying).toBe(false)
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      '关节 1 超出限位：[-3.141592653589793, 3.141592653589793]，实际值 3.241592653589793',
-    )
-    expect(screen.getByTestId('sample-count')).toHaveTextContent('0')
-  })
-
-  it('renders inverse and forward formulas through real KaTeX without parse warnings', async () => {
-    const user = userEvent.setup()
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    render(<ExperimentPage />)
-
-    const inverseCard = screen.getByRole('heading', { name: '逆动力学实时结果' }).closest('article')
-    if (inverseCard === null) throw new Error('Missing inverse formula card')
-    expect(accessibleMathText(inverseCard)).toContain('τ=Mq¨+Cq˙+g+τf')
-    expect(inverseCard.querySelector('.katex-error')).toBeNull()
-    await user.click(screen.getByRole('tab', { name: '结果' }))
-    expect(accessibleMathText(inverseCard)).toContain('q=')
-    expect(accessibleMathText(inverseCard)).toContain('τ=')
-    await user.click(screen.getByRole('tab', { name: '代入' }))
-    expect(accessibleMathText(inverseCard)).toContain('t=0.0000s')
-
-    await user.click(screen.getByRole('tab', { name: '正动力学' }))
-    const forwardCard = screen.getByRole('heading', { name: '正动力学实时结果' }).closest('article')
-    if (forwardCard === null) throw new Error('Missing forward formula card')
-    await user.click(screen.getByRole('tab', { name: '定义' }))
-    expect(accessibleMathText(forwardCard)).toContain('q¨=M−1(τ−Cq˙−g−τf)')
-    expect(forwardCard.querySelector('.katex-error')).toBeNull()
-    expect(warning).not.toHaveBeenCalled()
-    expect(error).not.toHaveBeenCalled()
-    warning.mockRestore()
-    error.mockRestore()
-  })
-
-  it('leaves mode, samples, time, and playback unchanged when a mode switch draft is invalid', async () => {
-    const user = userEvent.setup()
-    render(<ExperimentPage />)
-    fireEvent.change(screen.getByRole('slider', { name: '仿真时间' }), { target: { value: '0.5' } })
-    useLabStore.getState().setPlaying(true)
-    const sampleCount = screen.getByTestId('sample-count').textContent
-    const torque = screen.getByTestId('current-torque').textContent
-
-    await user.clear(screen.getByLabelText('持续时间'))
-    await user.type(screen.getByLabelText('持续时间'), 'invalid')
-    await user.click(screen.getByRole('tab', { name: '正动力学' }))
-
-    const state = useLabStore.getState()
-    expect(state.experiment.mode).toBe('inverse')
-    expect(state.simulationTime).toBe(0.5)
-    expect(state.experiment.isPlaying).toBe(true)
-    expect(screen.getByTestId('sample-count')).toHaveTextContent(sampleCount ?? '')
-    expect(screen.getByTestId('current-torque')).toHaveTextContent(torque ?? '')
-    expect(screen.getByRole('heading', { name: '逆动力学实时结果' })).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('持续时间必须在 0 到 30 s 之间。')
-  })
-
-  it('commits edited duration and step together with the generated sample grid', async () => {
-    const user = userEvent.setup()
-    render(<ExperimentPage />)
-
-    await user.clear(screen.getByLabelText('持续时间'))
-    await user.type(screen.getByLabelText('持续时间'), '0.02')
-    await user.clear(screen.getByLabelText('积分步长'))
-    await user.type(screen.getByLabelText('积分步长'), '0.01')
-    await user.click(screen.getByRole('button', { name: '生成实验' }))
-
-    const state = useLabStore.getState()
-    expect(state.experiment.duration).toBe(0.02)
-    expect(state.experiment.integrationStep).toBe(0.01)
-    expect(screen.getByTestId('sample-count')).toHaveTextContent('3')
-    expect(screen.getByRole('slider', { name: '仿真时间' })).toHaveAttribute('max', '0.02')
-    expect(screen.getByRole('slider', { name: '仿真时间' })).toHaveAttribute('step', '0.01')
+    await user.click(screen.getByRole('button', { name: '放大 3D' }))
+    expect(document.querySelector('.trajectory-workbench')).toHaveClass('is-scene-expanded')
+    expect(useTrajectoryStore.getState().time).toBe(1.5)
+    expect(screen.getByRole('button', { name: '退出放大' })).toBeInTheDocument()
   })
 })

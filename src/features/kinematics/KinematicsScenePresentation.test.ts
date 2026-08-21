@@ -67,6 +67,18 @@ describe('buildKinematicsScenePresentation', () => {
     expect(presentation.arcs.map((arc) => arc.id)).toContain('theta3')
   })
 
+  it('shows the complete θ₂ and θ₃ angle relationship at the consolidated solve stage', () => {
+    const presentation = makePresentation({
+      activeConfigurationId: 'conventional:elbow-down',
+      stepIndex: 12,
+    })
+
+    expect(presentation.dimensions).toHaveLength(0)
+    expect(presentation.arcs.map((arc) => arc.id)).toEqual([
+      'theta3', 'theta2',
+    ])
+  })
+
   it('visualizes the selected D–H operation and keeps only adjacent frames emphasized', () => {
     const presentation = makePresentation({
       dhOperation: 'tx',
@@ -124,13 +136,15 @@ describe('buildKinematicsScenePresentation', () => {
     expect(presentation.ghostRobots).toHaveLength(0)
   })
 
-  it('compares one solid radial family against one unlabeled ghost only at the configuration step', () => {
+  it('compares the selected elbow pose with the other elbow pose in the same radial family', () => {
     const presentation = makePresentation({ stepIndex: 13 })
 
     expect(presentation.primaryRobot?.label).toContain('肘下')
     expect(presentation.ghostRobots).toHaveLength(1)
+    expect(presentation.ghostRobots[0].id).toBe('ghost-conventional:elbow-up')
     expect(presentation.ghostRobots[0].label).toBeUndefined()
     expect(presentation.dimensions.map((item) => item.id)).toEqual(['r'])
+    expect(presentation.note).toContain('另一肘部姿态')
   })
 
   it('renders one selected Jacobian column at a time', () => {

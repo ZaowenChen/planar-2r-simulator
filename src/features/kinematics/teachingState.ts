@@ -27,7 +27,7 @@ export type KinematicsMode = 'forward' | 'inverse' | 'jacobian'
 
 export const KINEMATICS_MODE_STEPS: Record<KinematicsMode, readonly number[]> = {
   forward: [0, 1, 2, 3, 4, 5],
-  inverse: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+  inverse: [6, 8, 12, 13, 14],
   jacobian: [16, 17, 18, 19],
 }
 

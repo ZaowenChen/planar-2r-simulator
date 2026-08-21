@@ -31,10 +31,11 @@ export interface SceneCalculationInput {
   forward: ForwardKinematicsResult
   jointState: JointState
   jacobian: Matrix6x3
-  torque: Vector3
-  gravity: Vector3
+  torque?: Vector3
+  gravity?: Vector3
   workspaceSamples?: readonly Vector3[]
   trail?: readonly Vector3[]
+  markers?: readonly ScenePointModel[]
   overlays?: Partial<SceneOverlayFlags>
 }
 
@@ -205,6 +206,7 @@ export interface SceneModel {
   centerOfMassMarkers: readonly CenterOfMassMarkerModel[]
   workspace: PointCollectionModel
   trail: TrailModel
+  markers: readonly ScenePointModel[]
   vectors: readonly VectorOverlayModel[]
   gridVisible: boolean
 }
@@ -552,12 +554,12 @@ export function buildSceneModel(input: SceneCalculationInput): SceneModel {
       id: 'gravity',
       label: 'g',
       origin: average(forward.centerOfMassPositions),
-      vector: input.gravity,
+      vector: input.gravity ?? ZERO_VECTOR,
       unit: 'm/s²',
       color: '#a78bfa',
       visible: overlays.gravity,
     }),
-    ...input.torque.map((signedMagnitude, index) => vectorOverlay({
+    ...(input.torque ?? ZERO_VECTOR).map((signedMagnitude, index) => vectorOverlay({
       id: `torque-${index + 1}`,
       label: `τ${String.fromCharCode(0x2081 + index)}`,
       origin: forward.origins[index],
@@ -601,6 +603,7 @@ export function buildSceneModel(input: SceneCalculationInput): SceneModel {
       color: '#f5c86b',
       visible: overlays.trail,
     },
+    markers: input.markers ?? [],
     vectors,
     gridVisible: overlays.grid,
   }

@@ -16,7 +16,7 @@
 
 | 参考能力 | 当前项目落地 | 取舍 |
 |---|---|---|
-| `trapezoidal` / `mtraj` | 动态实验新增三关节同步梯形速度轨迹 | 固定自动平台速度，不增加容易误用的逐轴速度参数 |
+| `trapezoidal` / `mtraj` | 轨迹示教新增三关节同步 PTP 梯形速度轨迹 | 固定自动平台速度，不增加容易误用的逐轴速度参数 |
 | `manipulability(..., method="yoshikawa")` | 对位置雅可比显示 $\mu=\prod_i\sigma_i$ | 只使用 $J_v$，不混合线速度与角速度单位 |
 | `manipulability(..., method="invcondition")` | 显示 $\eta=\sigma_{\min}/\sigma_{\max}$ | 与现有条件数和奇异阈值并列解释 |
 | 轨迹与算法的分层测试 | 增加端点、分段、钳位和界面入口测试 | 延续 Vitest 与 Playwright 技术栈 |
